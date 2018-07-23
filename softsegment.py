@@ -63,19 +63,32 @@ def E_data_lsl2_pieces( Y, C, P, scratches = {} ):
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
 
-    ## ver3
-    #Cm = C[1:,:]
-    #P_temp = tile(P, (Cm.shape[0], 1, 1))
-    #C_temp = tile(Cm, (P.shape[0], 1, 1))
-    #Y= 1.0 - ((1.0-Y) * exp(sqrt(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)) /-2.0 ))
+    # ver3 [faster] ----
+    #from skimage import color     
+    #P_temp = color.rgb2lab(tile(P, (C[1:,:].shape[0], 1, 1)))/100.0 #norm
+    #C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))/100.0
+    P_temp = tile(P, (C[1:,:].shape[0], 1, 1)) # ignore black [0,0,0]
+    C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    ## ver2
+    # Weight opacity (1 -Y) by gaussian
+    sigma = 2.0**8 # increasing it makes robust
+    Y= 1.0 - ((1.0-Y) * exp(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))) # TUNING
+    #print mean(exp(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma)))
+    
+    # Lorentzian
+    #gamma =  1.0
+    #print mean(gamma/(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)**2 + (gamma)**2 )   )
+
+    #Y= 1.0 - ((1.0-Y) * gamma/(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)**2 + (gamma)**2 )    ) # TUNING
+
+
+    ## ver2 ----
     # CHANGE! C[0] is vector
     #P_temp = tile(P, (C.shape[0], 1, 1))    
     #for lay in range(C.shape[0]-1):
     #	Y[:, lay] = 1.0 - ((1.0-Y[:, lay]) * (1.0 - exp(sqrt(sum((P_temp[lay,:,:].reshape(P.shape) - C[lay,:]) * (P_temp[lay,:,:].reshape(P.shape) - C[lay,:]))) /-2.0 ))) # weights reversed
 
-    ## ver1
+    ## ver1 ---
     #for pix in range(P.shape[0]):
    	#	for lay in range(C.shape[0]-1):
    	#		#Y[pix, lay] *= exp(linalg.norm(P[pix,:], C[lay,:])/-2.0)
@@ -187,10 +200,10 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
     assert len( layer_colors.shape ) == 2
     assert img.shape[2] == layer_colors.shape[1]
     
-    from pprint import pprint
+    #from pprint import pprint
     # pprint( weights )
     assert set( weights.keys() ).issubset( set([ 'w_data_lsl2', 'w_ridge', 'w_spatial_static', 'w_tvl2' ]) )
-    
+
     C = layer_colors
     P = img.reshape( -1, img.shape[2] )
     
@@ -344,7 +357,7 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     Y0 = Y0.ravel()
     
     Ylen = len( Y0 )
-    
+
     e, g = gen_energy_and_gradient( arr, colors, weights, img_spatial_static_target = img_spatial_static_target, scratches = scratches )
     
     bounds = zeros( ( Ylen, 2 ) )
@@ -424,7 +437,7 @@ def run_one(Y0, imgpath, json_data, outprefix, is_uint8, color_vertices ,save_ev
     '''
     
     import json, os
-    from PIL import Image
+    #from PIL import Image
     import time
 
 #    with open(param_path) as json_file:
@@ -539,7 +552,7 @@ def run_one(Y0, imgpath, json_data, outprefix, is_uint8, color_vertices ,save_ev
 def run_initial(imgpath, json_data, outprefix, is_uint8, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
     
     import json, os
-    from PIL import Image
+    #from PIL import Image
     import time
 
  #   with open(param_path) as json_file:
@@ -685,7 +698,7 @@ def run_initial(imgpath, json_data, outprefix, is_uint8, color_vertices, save_ev
 
 
 def save_results( Y, colors, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out 
-    from PIL import Image
+    #from PIL import Image
     import tifffile as tifffile
 
     Y[Y>(1-float(threshold_opacity)/255.0)] = 1.0
@@ -739,9 +752,11 @@ if __name__ == '__main__':
     print "-----------"
     print "Running from stack ..."
 
-    from skimage import io
-    import numpy as np
-    im_stack = io.imread(input_image)
+    #from skimage import io
+    #import numpy as np
+    #im_stack = io.imread(input_image)
+    from tifffile import imread
+    im_stack = imread(input_image)
     n_image, row, col, ch = im_stack.shape
 
     max_projection = im_stack.max(axis=0)
@@ -755,10 +770,12 @@ if __name__ == '__main__':
         is_uint8 = 1;
 
     for k in arange(n_image,):
+    #for k in [0]:
+
         print "-----------"
         print  "Running "+ str(k+1) + "/"+str(n_image)  
 
-        # use image pyramid to initialize for the first one then propogate
+        # use image pyramid to initialize for the first one then propogate initilization
         if k==0:
             Y0 = run_initial(im_stack[k,:,:,:], json_data, str(k), is_uint8, color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
         else:

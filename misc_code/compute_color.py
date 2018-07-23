@@ -320,7 +320,7 @@ def compute_color(max_projection, N):
 	mesh=TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
 	print 'original hull vertices number:',len(mesh.vs)
 
-	for i in range(300):
+	for i in range(500):
 	    old_num=len(mesh.vs)
 	    mesh=TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
 
@@ -330,7 +330,7 @@ def compute_color(max_projection, N):
 	    write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
 
 	    #print len(newhull.vertices)
-	    if len(newhull.vertices) == N+2: # colors + black bakground + possible white 
+	    if len(newhull.vertices) == N+1: # colors + black bakground + possible white 
 	        pigments_colors=newhull.points[ newhull.vertices ].clip(0,255).round().astype(np.uint8)
 	        pigments_colors=pigments_colors.reshape((pigments_colors.shape[0],1,pigments_colors.shape[1]))
 
@@ -340,12 +340,19 @@ def compute_color(max_projection, N):
 
 	i = 0     
 	white_index = []        
+	del_color = []        
+
 	for colors in pigments_colors:
 		if colors[0,0]>190.0 and colors[0,1] > 190.0 and colors[0,2] > 190.0:
+			print 'white color detected and deleted' # dont wanna keep whie, not informative
 			white_index.append(i)
+		#if colors[0,0]>40.0 and colors[0,1] > 40.0 and colors[0,2] > 40.0 and colors[0,0]<100.0 and colors[0,1]<100.0 and colors[0,2] < 100.0:
+		#	print 'gray(ish) color detected and deleted' # if there is no white, but yo uwanna keep it fix N colors (except zero)
+		#	del_color.append(i)
 		i = i+1
-
 	pigments_colors = np.delete(pigments_colors, white_index, axis=0)
+	#pigments_colors = np.delete(pigments_colors, del_color, axis=0)
+
 	color_vertices =  np.asfarray(pigments_colors.reshape(pigments_colors.shape[0],3))
     
 	newhull=ConvexHull(mesh.vs)	
