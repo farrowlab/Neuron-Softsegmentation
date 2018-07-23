@@ -1,0 +1,13 @@
+{ 
+	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/softsegment/input/input.tif", 
+	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
+
+	"threshold_opacity":0,
+	"number_soft_segments": 8,
+
+	"w_polynomial": 375.0, 
+	"w_opaque": 10.0, 
+	"w_spatial_dynamic": 100.0, 
+
+	"Note": "Transforms 16 bit to 8 bit (8 bit gives enough satisfactory), opaque:80, poly:250 default, 375-60-t50 is better for neuron8"
+}
