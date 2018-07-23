@@ -8,7 +8,7 @@
 
 from numpy import *
 from itertools import izip as zip
-
+'''
 def E_overlap( Y, C, P, scratches = {} ):
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
 
@@ -24,14 +24,16 @@ def grad_E_overlap(Y, C, P, out, scratches = {} ): # CHANGE THIS ONE
         #temp[:,k] = prod(delete((1.0-Y),k,1), axis=1) * 100
 
     out = temp.flatten() 
-
-def E_opaque( Y, scratches = {} ):
+'''
+def E_ridge( Y, scratches = {} ):
 
 	return -dot( Y, Y )
+	#return -sum( Y )
 
-def grad_E_opaque( Y, out, scratches = {} ):
+def grad_E_ridge( Y, out, scratches = {} ):
     multiply( -2, Y, out )
-
+    #out = -1 * ones(Y.shape)
+'''
 def E_spatial_static( Y, Ytarget, scratches = {} ):
     if 'Y' not in scratches: scratches['Y'] = Y.copy()
     scratch = scratches['Y']
@@ -42,17 +44,17 @@ def E_spatial_static( Y, Ytarget, scratches = {} ):
 def grad_E_spatial_static( Y, Ytarget, out, scratches = {} ):
     subtract( Y, Ytarget, out )
     out *= 2
-
-def E_spatial_dynamic( Y, LTL, scratches = {} ):
+'''
+def E_tvl2( Y, LTL, scratches = {} ):
     ## I don't see how to specify the output memory
     return dot( Y, LTL.dot( Y ) )
 
-def grad_E_spatial_dynamic( Y, LTL, out, scratches = {} ):
+def grad_E_tvl2( Y, LTL, out, scratches = {} ):
     ## I don't see how to specify the output memory
     out[:] = LTL.dot( Y )
     out *= 2
 
-def E_polynomial_pieces( Y, C, P, scratches = {} ):
+def E_data_lsl2_pieces( Y, C, P, scratches = {} ):
     '''
     Y is a #pix-by-#layers flattened array
     C is a (#layers+1)-by-#channels not-flattened array (the 0-th layer is the background color)
@@ -60,10 +62,12 @@ def E_polynomial_pieces( Y, C, P, scratches = {} ):
     '''
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
-    Cm = C[1:,:]
-    P_temp = tile(P, (Cm.shape[0], 1, 1))
-    C_temp = tile(Cm, (P.shape[0], 1, 1))
-    Y= 1.0 - ((1.0-Y) * exp(sqrt(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)) /-2.0 ))
+
+    ## ver3
+    #Cm = C[1:,:]
+    #P_temp = tile(P, (Cm.shape[0], 1, 1))
+    #C_temp = tile(Cm, (P.shape[0], 1, 1))
+    #Y= 1.0 - ((1.0-Y) * exp(sqrt(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)) /-2.0 ))
 
     ## ver2
     # CHANGE! C[0] is vector
@@ -115,16 +119,17 @@ def E_polynomial_pieces( Y, C, P, scratches = {} ):
     DM.sum( 1, out = energy_presquared )
     energy_presquared += F
 
-def E_polynomial( Y, C, P, scratches = {} ):
-    E_polynomial_pieces( Y, C, P, scratches )
+def E_data_lsl2( Y, C, P, scratches = {} ):
+    E_data_lsl2_pieces( Y, C, P, scratches )
     
     energy_presquared = scratches['energy_presquared']
     
     square( energy_presquared, energy_presquared )
+    #print energy_presquared.shape
     return energy_presquared.sum()
 
-def gradY_E_polynomial( Y, C, P, out, scratches = {} ):
-    E_polynomial_pieces( Y, C, P, scratches )
+def gradY_E_data_lsl2( Y, C, P, out, scratches = {} ):
+    E_data_lsl2_pieces( Y, C, P, scratches )
     
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
@@ -184,7 +189,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
     
     from pprint import pprint
     # pprint( weights )
-    assert set( weights.keys() ).issubset( set([ 'w_polynomial', 'w_opaque', 'w_spatial_static', 'w_spatial_dynamic' ]) )
+    assert set( weights.keys() ).issubset( set([ 'w_data_lsl2', 'w_ridge', 'w_spatial_static', 'w_tvl2' ]) )
     
     C = layer_colors
     P = img.reshape( -1, img.shape[2] )
@@ -196,8 +201,8 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
         assert img_spatial_static_target is not None
         Yspatial_static_target = img_spatial_static_target.ravel()
     
-    if 'w_spatial_dynamic' in weights:
-        # print 'Preparing a Laplacian matrix for E_spatial_dynamic...'
+    if 'w_tvl2' in weights:
+        # print 'Preparing a Laplacian matrix for E_tvl2...'
         import fast_energy_laplacian
         import scipy.sparse
         # print '    Generating L...'
@@ -252,17 +257,17 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
     def e( Y ):
         e = 0.
         
-        if 'w_polynomial' in weights:
-            e += weights['w_polynomial'] * E_polynomial( Y, C, P, scratches )
+        if 'w_data_lsl2' in weights:
+            e += weights['w_data_lsl2'] * E_data_lsl2( Y, C, P, scratches )
         
-        if 'w_opaque' in weights:
-            e += weights['w_opaque'] * E_opaque( Y, scratches )
+        if 'w_ridge' in weights:
+            e += weights['w_ridge'] * E_ridge( Y, scratches )
         
         if 'w_spatial_static' in weights:
             e += weights['w_spatial_static'] * E_spatial_static( Y, Yspatial_static_target, scratches )
         
-        if 'w_spatial_dynamic' in weights:
-            e += weights['w_spatial_dynamic'] * E_spatial_dynamic( Y, LTL, scratches )
+        if 'w_tvl2' in weights:
+            e += weights['w_tvl2'] * E_tvl2( Y, LTL, scratches )
 
         # Extra energy term to penalize overlapping opacities (8 colors)
         #e += E_overlap(Y,C,P,scratches)
@@ -280,14 +285,14 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
         
         total_gradient[:] = 0.
         
-        if 'w_polynomial' in weights:
-            gradY_E_polynomial( Y, C, P, gradient_term, scratches )
-            gradient_term *= weights['w_polynomial']
+        if 'w_data_lsl2' in weights:
+            gradY_E_data_lsl2( Y, C, P, gradient_term, scratches )
+            gradient_term *= weights['w_data_lsl2']
             total_gradient += gradient_term
         
-        if 'w_opaque' in weights:
-            grad_E_opaque( Y, gradient_term, scratches )
-            gradient_term *= weights['w_opaque']
+        if 'w_ridge' in weights:
+            grad_E_ridge( Y, gradient_term, scratches )
+            gradient_term *= weights['w_ridge']
             total_gradient += gradient_term
         
         if 'w_spatial_static' in weights:
@@ -295,9 +300,9 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
             gradient_term *= weights['w_spatial_static']
             total_gradient += gradient_term
         
-        if 'w_spatial_dynamic' in weights:
-            grad_E_spatial_dynamic( Y, LTL, gradient_term, scratches )
-            gradient_term *= weights['w_spatial_dynamic']
+        if 'w_tvl2' in weights:
+            grad_E_tvl2( Y, LTL, gradient_term, scratches )
+            gradient_term *= weights['w_tvl2']
             total_gradient += gradient_term
         
         #grad_E_overlap( Y, C, P, gradient_term, scratches )
@@ -313,7 +318,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
 def composite_layers( layers ):
     layers = asfarray( layers )
     
-    ## Start with opaque white.
+    ## Start with ridge white.
     out = 255*ones( layers[0].shape )[:,:,:3]
     for layer in layers:
         out += layer[:,:,3:]/255.*( layer[:,:,:3] - out )
@@ -325,7 +330,7 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     Given a rows-by-cols-by-#channels array 'arr', where channels are the 3 color channels,
     and (#layers+1)-by-#channels 'colors' (the 0-th color is the background color),
     and rows-by-cols-by-#layers array 'Y0' of initial (1-alpha) values for each pixel (flattened or not),
-    and a dictionary of floating-point or None weights { w_polynomial, w_opacity, w_spatial_dynamic, w_spatial_static },
+    and a dictionary of floating-point or None weights { w_data_lsl2, w_opacity, w_tvl2, w_spatial_static },
     and an optional parameter 'img_spatial_static_target' which are the target values for 'w_spatial_static' (if not flattened, it will be),
     and an optional parameter 'scratches' which should be a dictionary that will be used to store scratch space between calls to this function (use only *if* arguments are the same size),
     and an optional parameter 'saver' which will be called after every iteration with the current state of Y.
@@ -374,8 +379,8 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
         opt_result = scipy.optimize.minimize( e, Y0, jac = g, bounds = bounds, callback = callback
           ,method='L-BFGS-B'
         
-         # ,options={'ftol': 1e-4, 'gtol': 1e-4}
-          ,options={'gtol': 1e-4} # Not optimum but faster CHANGED
+          ,options={'ftol': 1e-4, 'gtol': 1e-4}
+         # ,options={'gtol': 1e-4} # Not optimum but faster CHANGED
         
          )
 
@@ -403,7 +408,7 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     Y = Y.reshape( arr.shape[0], arr.shape[1], len( colors )-1 )
     return Y
 
-def run_one(Y0, imgpath, param_path, outprefix, is_stack, is_uint8, color_vertices ,save_every = None, solve_smaller_factor = None, too_small = None):
+def run_one(Y0, imgpath, json_data, outprefix, is_uint8, color_vertices ,save_every = None, solve_smaller_factor = None, too_small = None):
     #print imgpath
     '''
     Given a path `imgpath` to an image,
@@ -422,37 +427,27 @@ def run_one(Y0, imgpath, param_path, outprefix, is_stack, is_uint8, color_vertic
     from PIL import Image
     import time
 
-    with open(param_path) as json_file:
-        json_data = json.load(json_file)
+#    with open(param_path) as json_file:
+#        json_data = json.load(json_file)
+
 
     input_image=json_data["stack_path"]
-    #order=json_data["vertex_order"]
-    order = range(color_vertices.shape[0])
-    w_polynomial=json_data["w_polynomial"]
-    w_opaque=json_data["w_opaque"]
-    w_spatial_dynamic=json_data["w_spatial_dynamic"]
-    #colorpath = json_data["color_path"]
+    order = range(color_vertices.shape[0]) # no order necessary for our purposes
+    w_data_lsl2=json_data["w_data_lsl2"]
+    w_ridge=json_data["w_ridge"]
+    w_tvl2=json_data["w_tvl2"]
     threshold_opacity = json_data["threshold_opacity"]
+    weights = {'w_data_lsl2':w_data_lsl2, 'w_ridge':w_ridge, 'w_tvl2':w_tvl2}
+    #order=json_data["vertex_order"]
+    #colorpath = json_data["color_path"]
 
-    weights = {'w_polynomial':w_polynomial, 'w_opaque':w_opaque, 'w_spatial_dynamic':w_spatial_dynamic}
-
-    if is_stack == 1:
-        arr = asfarray(imgpath)
-        arr_backup=arr.copy()
-        if is_uint8 ==1:
-            arr = arr/255.0
-        else:
-            arr = arr/65535.0
+    arr = asfarray(imgpath)
+    arr_backup=arr.copy()
+    if is_uint8 ==1:
+        arr = arr/255.0
     else:
-        arr = Image.open( imgpath ).convert( 'RGB' )
-        assert asarray(arr).dtype in ['uint8', 'uint16']
-        arr_dtype = asarray(arr).dtype       
-        arr = asfarray(arr)
-        arr_backup=arr.copy()
-        if arr_dtype == 'uint8':
-            arr = arr/255.0
-        else:
-            arr = arr/65535.0
+        arr = arr/65535.0
+
 
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
@@ -504,28 +499,28 @@ def run_one(Y0, imgpath, param_path, outprefix, is_stack, is_uint8, color_vertic
    # if weightspath is not None:
     #    weights = json.load( open( weightspath ) )
     #else:
-    #    weights = { 'w_polynomial': 375, 'w_opaque': 1., 'w_spatial_dynamic': 100. }
-        # weights = { 'w_polynomial': 1., 'w_opaque': 100. }
-        # weights = { 'w_opaque': 100. }
+    #    weights = { 'w_data_lsl2': 375, 'w_ridge': 1., 'w_tvl2': 100. }
+        # weights = { 'w_data_lsl2': 1., 'w_ridge': 100. }
+        # weights = { 'w_ridge': 100. }
         # weights = { 'w_spatial_static': 100. }
         # static = 0.75 * ones( Ylen )
-        # weights = { 'w_spatial_dynamic': 100. }
-        # weights = { 'w_spatial_dynamic': 100., 'w_opaque': 100. }
+        # weights = { 'w_tvl2': 100. }
+        # weights = { 'w_tvl2': 100., 'w_ridge': 100. }
 
     num_layers=len(colors)-1
     ### adjust the weights:
-    if 'w_polynomial' in weights:
-        # weights['w_polynomial'] *= 50000.0 #### old one is 255*255
-        weights['w_polynomial'] /= arr.shape[2]
+    if 'w_data_lsl2' in weights:
+        # weights['w_data_lsl2'] *= 50000.0 #### old one is 255*255
+        weights['w_data_lsl2'] /= arr.shape[2]
     
-    if 'w_opaque' in weights:
-        weights['w_opaque'] /= num_layers
+    if 'w_ridge' in weights:
+        weights['w_ridge'] /= num_layers
     
     if 'w_spatial_static' in weights:
         weights['w_spatial_static'] /= num_layers
     
-    if 'w_spatial_dynamic' in weights:
-        weights['w_spatial_dynamic'] /= num_layers
+    if 'w_tvl2' in weights:
+        weights['w_tvl2'] /= num_layers
 
     reset_saver( arr.shape )
     Y = optimize( arr, colors, Y0, weights, img_spatial_static_target = static, saver = saver )
@@ -541,43 +536,32 @@ def run_one(Y0, imgpath, param_path, outprefix, is_stack, is_uint8, color_vertic
     return Y
 
     # **************************
-def run_initial(imgpath,  param_path, outprefix, is_stack, is_uint8 , color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
+def run_initial(imgpath, json_data, outprefix, is_uint8, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
     
     import json, os
     from PIL import Image
     import time
 
-    with open(param_path) as json_file:
-        json_data = json.load(json_file)
+ #   with open(param_path) as json_file:
+ #       json_data = json.load(json_file)
 
     input_image=json_data["stack_path"]
-    #order=json_data["vertex_order"]
     order = range(color_vertices.shape[0])
-    w_polynomial=json_data["w_polynomial"]
-    w_opaque=json_data["w_opaque"]
-    w_spatial_dynamic=json_data["w_spatial_dynamic"]
-    #colorpath = json_data["color_path"]
+    w_data_lsl2=json_data["w_data_lsl2"]
+    w_ridge=json_data["w_ridge"]
+    w_tvl2=json_data["w_tvl2"]
     threshold_opacity = json_data["threshold_opacity"]
+    weights = {'w_data_lsl2':w_data_lsl2, 'w_ridge':w_ridge, 'w_tvl2':w_tvl2}
+    #order=json_data["vertex_order"]
+    #colorpath = json_data["color_path"]
 
-    weights = {'w_polynomial':w_polynomial, 'w_opaque':w_opaque, 'w_spatial_dynamic':w_spatial_dynamic}
 
-    if is_stack == 1:
-        arr = asfarray(imgpath)
-        arr_backup=arr.copy()
-        if is_uint8 ==1:
-            arr = arr/255.0
-        else:
-            arr = arr/65535.0
+    arr = asfarray(imgpath)
+    arr_backup=arr.copy()
+    if is_uint8 ==1:
+        arr = arr/255.0
     else:
-        arr = Image.open( imgpath ).convert( 'RGB' )
-        assert asarray(arr).dtype in ['uint8', 'uint16']
-        arr_dtype = asarray(arr).dtype       
-        arr = asfarray(arr)
-        arr_backup=arr.copy()
-        if arr_dtype == 'uint8':
-            arr = arr/255.0
-        else:
-            arr = arr/65535.0
+        arr = arr/65535.0
 
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
@@ -629,28 +613,28 @@ def run_initial(imgpath,  param_path, outprefix, is_stack, is_uint8 , color_vert
     #if weightspath is not None:
     #    weights = json.load( open( weightspath ) )
     #else:
-    #    weights = { 'w_polynomial': 375, 'w_opaque': 1., 'w_spatial_dynamic': 100. }
-        # weights = { 'w_polynomial': 1., 'w_opaque': 100. }
-        # weights = { 'w_opaque': 100. }
+    #    weights = { 'w_data_lsl2': 375, 'w_ridge': 1., 'w_tvl2': 100. }
+        # weights = { 'w_data_lsl2': 1., 'w_ridge': 100. }
+        # weights = { 'w_ridge': 100. }
         # weights = { 'w_spatial_static': 100. }
         # static = 0.75 * ones( Ylen )
-        # weights = { 'w_spatial_dynamic': 100. }
-        # weights = { 'w_spatial_dynamic': 100., 'w_opaque': 100. }
+        # weights = { 'w_tvl2': 100. }
+        # weights = { 'w_tvl2': 100., 'w_ridge': 100. }
 
     num_layers=len(colors)-1
     ### adjust the weights:
-    if 'w_polynomial' in weights:
-        # weights['w_polynomial'] *= 50000.0 #### old one is 255*255
-        weights['w_polynomial'] /= arr.shape[2]
+    if 'w_data_lsl2' in weights:
+        # weights['w_data_lsl2'] *= 50000.0 #### old one is 255*255
+        weights['w_data_lsl2'] /= arr.shape[2]
     
-    if 'w_opaque' in weights:
-        weights['w_opaque'] /= num_layers
+    if 'w_ridge' in weights:
+        weights['w_ridge'] /= num_layers
     
     if 'w_spatial_static' in weights:
         weights['w_spatial_static'] /= num_layers
     
-    if 'w_spatial_dynamic' in weights:
-        weights['w_spatial_dynamic'] /= num_layers
+    if 'w_tvl2' in weights:
+        weights['w_tvl2'] /= num_layers
 
     
     #if solve_smaller_factor != 1:
@@ -740,78 +724,47 @@ if __name__ == '__main__':
     import json
     with open(param_path) as json_file:
         json_data = json.load(json_file)
+
     input_image=json_data["stack_path"]
-    #is_stack = int(json_data["is_stack"])
-    is_stack = 1
-    #input_dir=json_data["sequence_path"]
+    N = json_data["number_soft_segments"]
     output_folder = json_data["output_path"]
+
     save_every = 10000 # save [every] second
     solve_smaller_factor = None
-    too_small = None   
-    N = json_data["number_soft_segments"]
+    too_small = None       
 
     import time
     start=time.clock()
 
-    if  is_stack == 1:
+    print "-----------"
+    print "Running from stack ..."
+
+    from skimage import io
+    import numpy as np
+    im_stack = io.imread(input_image)
+    n_image, row, col, ch = im_stack.shape
+
+    max_projection = im_stack.max(axis=0)
+
+    from compute_color import compute_color
+    color_vertices = compute_color(max_projection, N)
+    
+    # Exception if the image not uint8 or uint16 
+    assert im_stack.dtype in ['uint8', 'uint16']        
+    if im_stack.dtype == 'uint8':
+        is_uint8 = 1;
+
+    for k in arange(n_image,):
         print "-----------"
-        print "Running from stack ..."
+        print  "Running "+ str(k+1) + "/"+str(n_image)  
 
-        from skimage import io
-        import numpy as np
-        #from scipy import misc
-        #im_stack = misc.imread(input_image)
-        #im_stack= im_stack.reshape([1,1024,1024,3])
-        im_stack = io.imread(input_image)
-        n_image, row, col, ch = im_stack.shape
+        # use image pyramid to initialize for the first one then propogate
+        if k==0:
+            Y0 = run_initial(im_stack[k,:,:,:], json_data, str(k), is_uint8, color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
+        else:
+            Y0=Y_prev.copy()    
+        Y_prev = run_one( Y0, im_stack[k,:,:,:], json_data, str(k), is_uint8, color_vertices ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
+    end=time.clock()
+    print 'time: ', end - start
 
-        max_projection = im_stack.max(axis=0)
-
-        from compute_color import compute_color
-        color_vertices = compute_color(max_projection, N)
-        # Exception if the image not uint8 or uint16 
-        #assert im_stack.dtype == 'uint8':
-        assert im_stack.dtype in ['uint8', 'uint16']        
-        if im_stack.dtype == 'uint8':
-            is_uint8 = 1;
-
-        for k in arange(n_image,):
-            print "-----------"
-            print  "Running "+ str(k+1) + "/"+str(n_image)  
-
-            # use image pyramid to initialize for the first one then propogate
-            if k==0:
-                Y0 = run_initial(im_stack[k,:,:,:], param_path, str(k), is_stack, is_uint8, color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
-            else:
-                Y0=Y_prev.copy()    
-            Y_prev = run_one( Y0, im_stack[k,:,:,:], param_path, str(k), is_stack, is_uint8, color_vertices ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
-        end=time.clock()
-        print 'time: ', end - start
-
-    else: # if you wanna run image sequence not a stack [Not needed]
-        print "-----------"
-        print "Running from sequence ..."     
-
-        import os
-        file_list = os.listdir(input_dir)  
-        is_uint8 = 1 # temporary value to pass
-
-        # Sort the list: img00000011.png = 11th image
-        def first_chars(x):
-            return int(x[4:len(x)-4])
-        sorted_list = sorted(file_list, key = first_chars)   
-        print sorted_list
-
-        for m in arange(len(sorted_list),):
-            print "-----------"
-            print  "Running "+ str(m+1) + "/"+str(len(sorted_list))  
-
-            # use image pyramid to initialize for the first one then propogate           
-            if m==0:
-                Y0 = run_initial(input_dir+sorted_list[m], param_path, str(m), is_stack, is_uint8, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
-            else:
-                Y0=Y_prev.copy()    
-            Y_prev = run_one( Y0, input_dir+sorted_list[m], param_path, str(m), is_stack, is_uint8 ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
-        end=time.clock()
-        print 'time: ', end-start
-        
+## EOF

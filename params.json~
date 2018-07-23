@@ -1,13 +1,13 @@
 { 
-	"stack_path": "/input/input.tif", 
+	"stack_path": "input/input.tif", 
 	"output_path": "output/",
 
 	"threshold_opacity":0,
 	"number_soft_segments": 8,
 
-	"w_polynomial": 375.0, 
-	"w_opaque": 10.0, 
-	"w_spatial_dynamic": 100.0, 
+	"w_data_lsl2": 375.0, 
+	"w_ridge": 10.0, 
+	"w_tvl2": 100.0, 
 
 	"Note": "Transforms 16 bit to 8 bit (8 bit gives enough satisfactory), opaque:80, poly:250 default, 375-60-t50 is better for neuron8"
 }
