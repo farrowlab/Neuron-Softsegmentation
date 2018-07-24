@@ -302,7 +302,7 @@ def compute_color(max_projection, N):
 	    
 	        return mesh
           
-############### max_projection
+# ************ max_projection *****************************************************
 
 	output_rawhull_obj_file='misc_param/temp'+"-rawconvexhull.obj"
 	E_vertice_num=4
@@ -318,7 +318,7 @@ def compute_color(max_projection, N):
 	write_convexhull_into_obj_file(hull, output_rawhull_obj_file)
 
 	mesh=TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
-	print 'original hull vertices number:',len(mesh.vs)
+	print '- Original hull vertices number:',len(mesh.vs)
 
 	for i in range(500):
 	    old_num=len(mesh.vs)
@@ -330,26 +330,41 @@ def compute_color(max_projection, N):
 	    write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
 
 	    #print len(newhull.vertices)
-	    if len(newhull.vertices) == N+1: # colors + black bakground + possible white 
+	    if len(newhull.vertices) == N+2: # colors + black bakground + possible white 
 	        pigments_colors=newhull.points[ newhull.vertices ].clip(0,255).round().astype(np.uint8)
 	        pigments_colors=pigments_colors.reshape((pigments_colors.shape[0],1,pigments_colors.shape[1]))
 
 	    if len(mesh.vs)==old_num or len(mesh.vs)<=E_vertice_num:
-	        print 'final vertices number', len(mesh.vs)
+	        print '- Final vertices number', len(mesh.vs)
 	        break
 
 	i = 0     
-	white_index = []        
+	white_index = [] 
+	black_index = []       
 	del_color = []        
 
 	for colors in pigments_colors:
 		if colors[0,0]>190.0 and colors[0,1] > 190.0 and colors[0,2] > 190.0:
-			print 'white color detected and deleted' # dont wanna keep whie, not informative
+			print '- White color detected and deleted' # dont wanna keep whie, not informative
 			white_index.append(i)
+		if colors[0,0]<15.0 and colors[0,1] < 15.0 and colors[0,2] < 15.0:
+			black_index.append(i)
 		#if colors[0,0]>40.0 and colors[0,1] > 40.0 and colors[0,2] > 40.0 and colors[0,0]<100.0 and colors[0,1]<100.0 and colors[0,2] < 100.0:
 		#	print 'gray(ish) color detected and deleted' # if there is no white, but yo uwanna keep it fix N colors (except zero)
 		#	del_color.append(i)
 		i = i+1
+	assert len(black_index) ==1
+	assert len(white_index) < 2	
+	if len(white_index) == 0: print '- No white pixels found, you got one extra layer, decrease number of colors (N)!'
+	#print len(white_index)
+
+	# make sure blck is the first color
+	temp2 = pigments_colors[black_index,:]
+	pigments_colors[black_index,:] = pigments_colors[0,:]
+	pigments_colors[0,:] = temp2
+
+	if 0 in set(white_index): 
+		white_index[0] = black_index[0]
 	pigments_colors = np.delete(pigments_colors, white_index, axis=0)
 	#pigments_colors = np.delete(pigments_colors, del_color, axis=0)
 
@@ -361,8 +376,7 @@ def compute_color(max_projection, N):
 	end_time=time.clock()
 	print 'time: ', end_time-start_time
 
-	print 'Computed color vertices from max-projection:'
+	print '- Computed color vertices from max-projection:'
 	print color_vertices
 	print color_vertices.shape
 	return color_vertices
-

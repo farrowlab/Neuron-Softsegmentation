@@ -1,13 +1,13 @@
 { 
-	"stack_path": "input/input8.tif", 
-	"output_path": "output/",
+	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/temp.tif", 
+	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
 	"threshold_opacity":0,
-	"number_soft_segments": 9,
+	"number_soft_segments": 4,
 
-	"w_data_lsl2": 400.0, 
-	"w_ridge": 20.0, 
+	"w_fidelity_lsl2": 400.0, 
+	"w_ridge": 40.0, 
 	"w_tvl2": 100.0, 
 
-	"Note": "if there is white pixels expected in max-projection put N+1 colors (most cases), Transforms 16 bit to 8 bit (8 bit gives enough satisfactory), ridge:80, lsl2:250 default, 375-60-t50 is better for neuron8"
+	"Note": ""
 }

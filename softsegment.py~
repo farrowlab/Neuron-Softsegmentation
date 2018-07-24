@@ -3,18 +3,7 @@
 # adapted from Tan et al., (2015, SIGGRAPH): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
 #
 
-# Note: Create a conda envirnemnt and install dependencies [recommended]
-#       Check misc_code for used snipplets
-#
-# Fixed: 
-# - Uint16/uint8 reading and uint8 saving using single tifffile.py
-# - Computing color vertices (only number of colors is input)
-# - White color detection adn deletion (noninformative)
-# - Black backround is always 0th vertice
-#
-# To-do:
-# - Improve weighting function and hyperparameter tuning
-# - Integrate preprocessing 
+# Create a conda envirnemnt and install dependencies
 #
 
 from numpy import *
@@ -87,7 +76,7 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     #C_temp = tile(tile([1.0,0,0], (8,1)), (P.shape[0], 1, 1))
 
     sigma = 2.0 # increasing it makes robust
-    #Y= 1.0 - ((1.0-Y) * exp(mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))) # TUNING
+    Y= 1.0 - ((1.0-Y) * exp(mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))) # TUNING
     #print exp(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))[10,:]
 
     # signum ***
@@ -220,6 +209,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
     
     img = asfarray( img )
     layer_colors = asfarray( layer_colors )
+    print img.shape[2], layer_colors.shape[1]
     
     assert len( img.shape ) == 3 
     assert len( layer_colors.shape ) == 2
@@ -446,7 +436,7 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     Y = Y.reshape( arr.shape[0], arr.shape[1], len( colors )-1 )
     return Y
 
-def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, solve_smaller_factor = None, too_small = None):
+def run_one(Y0, imgpath, json_data, outprefix, color_vertices ,save_every = None, solve_smaller_factor = None, too_small = None):
     #print imgpath
     '''
     Given a path `imgpath` to an image,
@@ -478,14 +468,14 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     weights = {'w_fidelity_lsl2':w_fidelity_lsl2, 'w_ridge':w_ridge, 'w_tvl2':w_tvl2}
     #order=json_data["vertex_order"]
     #colorpath = json_data["color_path"]
-    
-    #arr = asfarray(imgpath)
+'''
+    arr = asfarray(imgpath)
     arr_backup=arr.copy()
-    #if is_uint8 ==1:
-    #    arr = arr/255.0
-    #else:
-    #    arr = arr/65535.0
-    
+    if is_uint8 ==1:
+        arr = arr/255.0
+    else:
+        arr = arr/65535.0
+'''
 
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
@@ -574,7 +564,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     return Y
 
     # **************************
-def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
+def run_initial(imgpath, json_data, outprefix, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
     
     import json, os
     #from PIL import Image
@@ -593,15 +583,14 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
     #order=json_data["vertex_order"]
     #colorpath = json_data["color_path"]
 
-    #print max(arr.flatten())
-    #arr = asfarray(imgpath)
-
+    '''
+    arr = asfarray(imgpath)
     arr_backup=arr.copy()
-    #if is_uint8 ==1:
-    #    arr = arr/255.0
-    #else:
-    #    arr = arr/65535.0
-    
+    if is_uint8 ==1:
+        arr = arr/255.0
+    else:
+        arr = arr/65535.0
+    '''
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
     colors_backup=colors.copy()
@@ -784,33 +773,24 @@ if __name__ == '__main__':
     from tifffile import imread, imshow
     im_stack = imread(input_image)
     n_image, row, col, ch = im_stack.shape
-    #print im_stack.shape
 
     # Exception if the image not uint8 or uint16 
     assert im_stack.dtype in ['uint8', 'uint16']        
     if im_stack.dtype == 'uint16':
-    	print 'uint16 stack reading ...'
         im_stack = asfarray(im_stack)/65535.0
-        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+        max_projection = max((255.0 * im_stack).asndarray('uint8'), axis=0)
     else:
-    	print 'uint8 stack reading ..,'
     	im_stack = asfarray(im_stack)/255.0
-        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+        max_projection = max((255.0 * im_stack).asndarray('uint8'), axis=0)
 
-    if ch > 3: # when reading 16 bit color stacks saved from ImageJ
-    	print '- Warn: # of color ch. =? ' + str(ch)
-    	print 'Swapping channels ..'
-    	im_stack = transpose(im_stack,(0,2,3,1))
+    if ch > 4: # when reading 16 bit color stacks saved from ImageJ
+    	print '# color ch. =? ' + str(ch)
+    	print 'swapping channels ..'
+    	im_stack = swapaxes(im_stack,3,1)
     	n_image, row, col, ch = im_stack.shape
-    	print im_stack.shape
 
     from compute_color import compute_color
     color_vertices = compute_color(max_projection, N)
-
-    ## plane show
-    #from matplotlib import pyplot as plt
-    #imshow(im_stack[1,:,:,:])
-    #plt.show()
     
 
     #for k in arange(n_image,):
