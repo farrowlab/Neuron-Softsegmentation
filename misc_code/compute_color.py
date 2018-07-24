@@ -311,6 +311,9 @@ def compute_color(max_projection, N):
 	import time 
 	start_time=time.clock()
 
+	## insert a white pixel to make sure we got one
+	max_projection[0,0,:] = np.asarray([191,191,191])
+
 	#images=np.asfarray(Image.open(input_image_path).convert('RGB')).reshape((-1,3))
 	images= max_projection.reshape((-1,3))
 	hull=ConvexHull(images)
@@ -345,7 +348,7 @@ def compute_color(max_projection, N):
 
 	for colors in pigments_colors:
 		if colors[0,0]>190.0 and colors[0,1] > 190.0 and colors[0,2] > 190.0:
-			print '- White color detected and deleted' # dont wanna keep whie, not informative
+			#print '- White color detected and deleted' # dont wanna keep whie, not informative
 			white_index.append(i)
 		if colors[0,0]<15.0 and colors[0,1] < 15.0 and colors[0,2] < 15.0:
 			black_index.append(i)
@@ -355,7 +358,7 @@ def compute_color(max_projection, N):
 		i = i+1
 	assert len(black_index) ==1
 	assert len(white_index) < 2	
-	if len(white_index) == 0: print '- No white pixels found, you got one extra layer, decrease number of colors (N)!'
+	#if len(white_index) == 0: print '- No white pixels found, you got one extra layer, decrease number of colors (N)!'
 	#print len(white_index)
 
 	# make sure blck is the first color

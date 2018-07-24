@@ -1,12 +1,12 @@
 { 
-	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/temp.tif", 
-	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
+	"stack_path": "input/input8.tif", 
+	"output_path": "output/",
 
 	"threshold_opacity":0,
-	"number_soft_segments": 3,
+	"number_soft_segments": 8,
 
 	"w_fidelity_lsl2": 400.0, 
-	"w_ridge": 40.0, 
+	"w_ridge": 10.0, 
 	"w_tvl2": 100.0, 
 
 	"Note": ""

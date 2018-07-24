@@ -1,6 +1,6 @@
 #
 # Soft Segmentation of Viral Labeled Neurons
-# adapted from Tan et al., (2015, SIGGRAPH): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
+# adapted from Tan et al., (2015): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
 #
 
 # Note: Create a conda envirnemnt and install dependencies [recommended]
@@ -14,11 +14,19 @@
 #
 # To-do:
 # - Improve weighting function and hyperparameter tuning
-# - Integrate preprocessing 
+# - Integrate preprocessing
 #
 
 from numpy import *
 from itertools import izip as zip
+from skimage import color     
+import scipy.optimize
+import time
+import os
+import json
+import sys
+
+
 '''
 def E_overlap( Y, C, P, scratches = {} ):
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
@@ -75,31 +83,34 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
 
     # ver3 [faster] ----
-    # Weight opacity (1 -Y) by gaussian ***
-    #from skimage import color     
-    #P_temp = color.rgb2lab(tile(P, (C[1:,:].shape[0], 1, 1)))/100.0 #norm
-    #C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))/100.0
 
-    P_temp = tile(P, (C[1:,:].shape[0], 1, 1)) # ignore black [0,0,0]
-    #P_temp = tile(tile([0.8,0,0], (P.shape[0], 1)), (C[1:,:].shape[0], 1, 1)) # ignore black [0,0,0]
+    # Weight opacity (1 -Y) by gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:2]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:1:2]/100.0
 
-    C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
-    #C_temp = tile(tile([1.0,0,0], (8,1)), (P.shape[0], 1, 1))
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    sigma = 2.0 # increasing it makes robust
-    #Y= 1.0 - ((1.0-Y) * exp(mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))) # TUNING
-    #print exp(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))[10,:]
+    sigma = 1.0  # increasing it makes robust
+    Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
+    #print P_temp.shape
+    #print C_temp.shape
 
+    # _OLD -------------------------
     # signum ***
-    #temp = mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)
-    #Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.1, temp<=0.1], [0, 1]) ) # TUNING
-    #print  piecewise(temp, [temp>0.2, temp<=0.2], [0.1,0.9]) 
+    #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
+    #Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.08, temp<=0.08], [1, 0]) ) # TUNING
+ 	#Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.2, temp<=0.2], [1, 0]) ) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))   # TUNING
+    
+    # alternative signum [worthless]
+    #Y= 1.0 -  piecewise((1.0 - Y), [(1.0 - Y) > 0.15, (1.0 - Y) <= 0.15], [0, 1]) 
 
     # linear
-    #Y= 1.0 - ((1.0-Y) * (1.0 - mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2))) # TUNING
+    #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
+    #Y= 1.0 - ((1.0-Y) * (1.0 - temp)) # TUNING
 
     # quadratic 
-    #temp = mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)
+    #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
     #Y= 1.0 - ((1.0-Y) * (1.0 - temp)**2) # TUNING
 
     # Lorentzian ***
@@ -118,6 +129,7 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
    	#	for lay in range(C.shape[0]-1):
    	#		#Y[pix, lay] *= exp(linalg.norm(P[pix,:], C[lay,:])/-2.0)
    	#		Y[pix, lay] = 1.0 - ((1.0-Y[pix, lay]) * exp(sqrt(sum((P[pix,:] - C[lay,:]) * (P[pix,:] - C[lay,:]))) /-2.0 ))
+   	# ---------------------------
 
     ## Allocate scratch space
     if 'F' not in scratches:
@@ -375,8 +387,6 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     returns a rows-by-cols-#layers array of optimized Y values, which are (1-alpha).
     '''
     
-    import scipy.optimize
-    import time
     start = time.clock()
 
     Y0 = Y0.ravel()
@@ -461,9 +471,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     runs optimize() on it and saves the output to e.g. `outprefix + "-layer01.png"`.
     '''
     
-    import json, os
     #from PIL import Image
-    import time
 
 #    with open(param_path) as json_file:
 #        json_data = json.load(json_file)
@@ -576,9 +584,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     # **************************
 def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
     
-    import json, os
     #from PIL import Image
-    import time
 
  #   with open(param_path) as json_file:
  #       json_data = json.load(json_file)
@@ -756,11 +762,9 @@ def save_results( Y, colors, img_shape, outprefix, order=[] , threshold_opacity 
 # ----------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    import sys
     sys.path.insert(0, 'misc_code/')
     param_path = 'params.json'
 
-    import json
     with open(param_path) as json_file:
         json_data = json.load(json_file)
 
@@ -772,7 +776,6 @@ if __name__ == '__main__':
     solve_smaller_factor = None
     too_small = None       
 
-    import time
     start=time.clock()
 
     print "-----------"
@@ -813,7 +816,7 @@ if __name__ == '__main__':
     #plt.show()
     
 
-    #for k in arange(n_image,):
+    #for k in [0]:
     for k in range(n_image):
 
         print "-----------"
