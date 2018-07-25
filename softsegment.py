@@ -2,7 +2,9 @@
 # Soft Segmentation of Viral Labeled Neurons
 # adapted from Tan et al., (2015): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
 #
-
+# Briefly: Least-squares optimization with Tikhonov (ridge) and l2-TV regularizations
+#           + l1 color difference weighting on layers in a*b*
+# ----------------------------------------------------------------------------------------------
 # Note: Create a conda envirnemnt and install dependencies [recommended]
 #       Check misc_code for used snipplets
 #
@@ -14,6 +16,7 @@
 #
 # To-do:
 # - Improve weighting function and hyperparameter tuning
+# - The last weighting before saving!
 # - Integrate preprocessing
 #
 
@@ -82,19 +85,20 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
 
-    # ver3 [faster] ----
-
-    # Weight opacity (1 -Y) by gaussian in a*b* color space [L* ignored]
-    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:2]/100.0 #norm
-    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:1:2]/100.0
+    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
 
     #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
     #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    sigma = 1.0  # increasing it makes robust
-    Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
-    #print P_temp.shape
-    #print C_temp.shape
+    sigma = 2.0  # increasing it makes robust
+
+    # Laplacian
+    Y= 1.0 - ((1.0-Y) * exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma))  ) # TUNING
+
+    # Gaussian
+    #Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
 
     # _OLD -------------------------
     # signum ***
@@ -117,19 +121,6 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     #gamma =  1.0
     #print mean(gamma/(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)**2 + (gamma)**2 )   )
     #Y= 1.0 - ((1.0-Y) * gamma/(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)**2 + (gamma)**2 )    ) # TUNING
-
-    ## ver2 ----
-    # CHANGE! C[0] is vector
-    #P_temp = tile(P, (C.shape[0], 1, 1))    
-    #for lay in range(C.shape[0]-1):
-    #	Y[:, lay] = 1.0 - ((1.0-Y[:, lay]) * (1.0 - exp(sqrt(sum((P_temp[lay,:,:].reshape(P.shape) - C[lay,:]) * (P_temp[lay,:,:].reshape(P.shape) - C[lay,:]))) /-2.0 ))) # weights reversed
-
-    ## ver1 ---
-    #for pix in range(P.shape[0]):
-   	#	for lay in range(C.shape[0]-1):
-   	#		#Y[pix, lay] *= exp(linalg.norm(P[pix,:], C[lay,:])/-2.0)
-   	#		Y[pix, lay] = 1.0 - ((1.0-Y[pix, lay]) * exp(sqrt(sum((P[pix,:] - C[lay,:]) * (P[pix,:] - C[lay,:]))) /-2.0 ))
-   	# ---------------------------
 
     ## Allocate scratch space
     if 'F' not in scratches:
@@ -786,7 +777,13 @@ if __name__ == '__main__':
     #im_stack = io.imread(input_image)
     from tifffile import imread, imshow
     im_stack = imread(input_image)
-    n_image, row, col, ch = im_stack.shape
+    try:
+    	n_image, row, col, ch = im_stack.shape
+    except ValueError:
+    	row, col, ch = im_stack.shape
+    	im_stack = im_stack.reshape([1, row, col, ch])
+    	n_image, row, col, ch = im_stack.shape
+    	print '- It is a single image plane, not a stack'
     #print im_stack.shape
 
     # Exception if the image not uint8 or uint16 

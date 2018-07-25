@@ -1,13 +1,15 @@
 { 
-	"stack_path": "input/input6.tif", 
+	"stack_path": "input/input8.tif", 
 	"output_path": "output/",
+	"stack_path2": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
+	"output_path2": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
 
 	"threshold_opacity":0,
 	"number_soft_segments": 8,
 
-	"w_fidelity_lsl2": 400.0, 
-	"w_ridge": 10.0, 
-	"w_tvl2": 100.0, 
+	"w_fidelity_lsl2": 40.0, 
+	"w_ridge": 2.0, 
+	"w_tvl2": 20.0, 
 
-	"Note": ""
+	"Note1": "40-1-10 def"
 }
