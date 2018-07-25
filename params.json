@@ -1,8 +1,12 @@
 { 
 	"stack_path2": "input/input8.tif", 
 	"output_path2": "output/",
-	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
-	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
+
+	"stack_path3": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
+	"output_path3": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
+
+	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_s15c1_sliced.tif", 
+	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
 	"threshold_opacity":0,
 	"number_soft_segments": 8,

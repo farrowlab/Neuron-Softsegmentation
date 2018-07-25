@@ -786,16 +786,8 @@ if __name__ == '__main__':
     	print '- It is a single image plane, not a stack'
     #print im_stack.shape
 
-    # Exception if the image not uint8 or uint16 
-    assert im_stack.dtype in ['uint8', 'uint16']        
-    if im_stack.dtype == 'uint16':
-    	print 'uint16 stack reading ...'
-        im_stack = asfarray(im_stack)/65535.0
-        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
-    else:
-    	print 'uint8 stack reading ..,'
-    	im_stack = asfarray(im_stack)/255.0
-        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+    print '- input stack path: ' + input_image
+    print '- output path: ' + output_folder
 
     if ch > 3: # when reading 16 bit color stacks saved from ImageJ
     	print '- Warn: # of color ch. =? ' + str(ch)
@@ -804,6 +796,18 @@ if __name__ == '__main__':
     	n_image, row, col, ch = im_stack.shape
     	print im_stack.shape
 
+    # Exception if the image not uint8 or uint16 
+    assert im_stack.dtype in ['uint8', 'uint16']        
+    if im_stack.dtype == 'uint16':
+        print 'uint16 stack reading ...'
+        im_stack = asfarray(im_stack)/65535.0
+        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+    else:
+        print 'uint8 stack reading ..,'
+        im_stack = asfarray(im_stack)/255.0
+        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+
+    #print max_projection.shape
     from compute_color import compute_color
     color_vertices = compute_color(max_projection, N)
 
