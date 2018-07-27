@@ -6,19 +6,20 @@
 #           + l1 color difference weighting on layers in a*b*
 # ----------------------------------------------------------------------------------------------
 # Note: Create a conda envirnemnt and install dependencies [recommended]
-#       Check misc_code for used snipplets
+#       Check misc_code for used libs
 #
 # Fixed: 
 # - Uint16/uint8 reading and uint8 saving using single tifffile.py
 # - Computing color vertices (only number of colors is input)
 # - White color detection adn deletion (noninformative)
 # - Black backround is always 0th vertice
+# - Fidelity term weighting
+# - Final weighting
+
 #
 # To-do:
-# - Improve weighting function and hyperparameter tuning
-# - The last weighting before saving!
 # - Integrate preprocessing
-#
+# - TV-l1 for inpainting, since TV-l2 cannot do that (cannot possble with LBFGSB :/)
 
 from numpy import *
 from itertools import izip as zip
@@ -114,21 +115,21 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     '''
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
-    
-    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
-    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
-    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
 
-    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
-    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
+    if RUN_FAST == 0:
+    	# Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    	P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    	C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
+    	#P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    	#C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    sigma = 2.0  # increasing it makes robust
+        sigma = 2.0  # increasing it makes robust
 
-    # Laplacian
-    Y= 1.0 - ((1.0-Y) * exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma))  ) # TUNING
-    
-    # Gaussian
-    #Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
+        # Laplacian
+        Y= 1.0 - ((1.0-Y) * exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma))  ) # TUNING
+		    
+        # Gaussian
+        #Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
 
     # _OLD -------------------------
     # signum ***
@@ -550,7 +551,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
         ## Save every 10 seconds!
         if now - last_save[1] > kSaveEverySeconds:
             print 'Iteration', last_save[0]
-            save_results( xk, colors, arr_shape, outprefix, order, threshold_opacity )
+            save_results( xk, colors, arr, arr_shape, outprefix, order, threshold_opacity ) # MIGHT CAUSE TROUBLE when saving smaller image [arr is input nwo]
             ## Get the time again instead of using 'now', because that doesn't take into
             ## account the time to actually save the images, which is a lot for large images.
             last_save[1] = time.clock()
@@ -592,7 +593,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     reset_saver( arr.shape )
     Y = optimize( arr, colors, Y0, weights, img_spatial_static_target = static, saver = saver )
     
-    composite_img=save_results( Y, colors, arr.shape, outprefix, order, threshold_opacity )
+    composite_img=save_results( Y, colors, arr, arr.shape, outprefix, order, threshold_opacity )
     img_diff=composite_img-arr_backup
     RMSE=sqrt(square(img_diff).sum()/(composite_img.shape[0]*composite_img.shape[1]))
     
@@ -633,6 +634,7 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
     colors_backup=colors.copy()
     colors=colors[order,:]/255.0
+    #print colors.shape
     
     assert solve_smaller_factor is None or int( solve_smaller_factor ) == solve_smaller_factor
     
@@ -750,13 +752,29 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
     return Y0_initial
 
 
-def save_results( Y, colors, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out 
+def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out 
     #from PIL import Image
     import tifffile as tifffile
 
+    # Hard thresholding
     Y[Y>(1-float(threshold_opacity)/255.0)] = 1.0
+    P = img.reshape(-1, img.shape[2] ).copy()
+    # Last weighting
+    from skimage import color     
+    P_temp = color.rgb2lab(transpose(tile(P, (colors[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(colors[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    alphas = 1. - Y.reshape( img_shape[0], img_shape[1], -1 )
+    # 
+    #final_weight_linear = (1.0 - mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) ) # LINEAR
+    final_weight_q1 = (1.0 - mean(absolute(P_temp - C_temp), axis= 2) )**2 # QUADRATIC
+    #final_weight_q2 = 1.0 - (mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) )**2 # QUADRATIC2
+
+    Y = Y.reshape( img_shape[0], img_shape[1], -1 )
+    Y= 1.0 - ((1.0-Y) * final_weight_q1.reshape( Y.shape ) )
+
+    alphas = 1. - Y
     layers = []
     lay_folder = 0
     for li, color in enumerate( colors ):  ### colors are now in range[0.0,1.0] not [0,255]
@@ -768,6 +786,7 @@ def save_results( Y, colors, img_shape, outprefix, order=[] , threshold_opacity 
         outpath_tiff = output_folder+'layer%02d.tif' % li
         #Image.fromarray( layer ).save( outpath )
         if ( li != 0 ): tifffile.imsave(outpath_tiff, layer[:,:,3] , append='True')  # save alphas as tiff stacks	(except 0th beackground)		
+        if ( li != 0 ) and SAVE_COLOR==1: tifffile.imsave(outpath_tiff+'_colored', layer, append='True')  # save alphas as tiff stacks	(except 0th beackground)		
 
         #print 'Saved layer:', outpath
         lay_folder = lay_folder +1
@@ -792,15 +811,22 @@ if __name__ == '__main__':
     input_image=json_data["stack_path"]
     N = json_data["number_soft_segments"]
     output_folder = json_data["output_path"]
+    global RUN_FAST # global seemed easy at this moment
+    RUN_FAST = json_data["FAST"]
 
-    save_every = 10000 # save [every] second
+    global SAVE_COLOR 
+    SAVE_COLOR = json_data["SAVE_COLOR"]
+
+    save_every = 100000 # Intermediate saving step: Save [every] second [Not needed]
     solve_smaller_factor = None
     too_small = None       
 
     start=time.clock()
-
-    print "-----------"
+    
+    print '-----------------------------------------------'
     print "Running from stack ..."
+    if RUN_FAST == 0:
+    	print '- Weighting in data fidelty term activated [Slower]'
 
     #from skimage import io
     #import numpy as np
@@ -821,7 +847,7 @@ if __name__ == '__main__':
 
     if ch > 3: # when reading 16 bit color stacks saved from ImageJ
     	print '- Warn: # of color ch. =? ' + str(ch)
-    	print 'Swapping channels ..'
+    	print '- Swapping channels ..'
     	im_stack = transpose(im_stack,(0,2,3,1))
     	n_image, row, col, ch = im_stack.shape
     	print im_stack.shape
@@ -833,7 +859,7 @@ if __name__ == '__main__':
         im_stack = asfarray(im_stack)/65535.0
         max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
     else:
-        print 'uint8 stack reading ..,'
+        print 'uint8 stack reading ...'
         im_stack = asfarray(im_stack)/255.0
         max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
 

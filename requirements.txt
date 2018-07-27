@@ -3,5 +3,5 @@ cvxopt
 pathlib
 numpy
 scipy
-enum, enum34
+enum34, enum
 

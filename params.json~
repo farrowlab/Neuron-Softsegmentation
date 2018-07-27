@@ -1,5 +1,5 @@
 { 
-	"stack_path": "input/input8.tif", 
+	"stack_path": "input/MAX_neuron6.tif", 
 	"output_path": "output/",
 
 	"stack_path3": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
@@ -9,10 +9,12 @@
 	"output_path2": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
 	"threshold_opacity":0,
-	"number_soft_segments": 8,
+	"number_soft_segments": 6,
+	"FAST": 1,
+	"SAVE_COLOR": 1,
 
 	"w_fidelity_lsl2": 40.0, 
-	"w_ridge": 2.0, 
+	"w_ridge": 2, 
 	"w_tvl2": 20.0, 
 
 	"Note1": "40-1-10 def"

@@ -4,4 +4,5 @@ pathlib
 numpy
 scipy
 enum
+enum34
 
