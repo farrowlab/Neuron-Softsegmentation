@@ -47,14 +47,43 @@ def grad_E_overlap(Y, C, P, out, scratches = {} ): # CHANGE THIS ONE
 
     out = temp.flatten() 
 '''
-def E_ridge( Y, scratches = {} ):
+def E_ridge( Y, C, P, scratches = {} ):
 
-	return -dot( Y, Y )
-	#return -sum( Y )
+    '''
+    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
 
-def grad_E_ridge( Y, out, scratches = {} ):
-    multiply( -2, Y, out )
-    #out = -1 * ones(Y.shape)
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
+
+    sigma = 2.0  # increasing it makes robust
+
+    # Laplacian
+    we_ridge =  exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma)).ravel() # TUNING
+    '''
+    #return -dot( Y, Y*(1.0 - we_ridge) ) 
+    return -dot( Y, Y ) 
+
+def grad_E_ridge( Y, C, P, out, scratches = {} ):
+
+    '''
+    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
+
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
+
+    sigma = 2.0  # increasing it makes robust
+
+    # Laplacian
+    we_ridge =  exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma)).ravel() # TUNING
+
+    '''
+    #out = (1.0 - we_ridge)  * Y * -2
+    multiply( -2, Y, out ) 
+
 '''
 def E_spatial_static( Y, Ytarget, scratches = {} ):
     if 'Y' not in scratches: scratches['Y'] = Y.copy()
@@ -67,6 +96,7 @@ def grad_E_spatial_static( Y, Ytarget, out, scratches = {} ):
     subtract( Y, Ytarget, out )
     out *= 2
 '''
+
 def E_tvl2( Y, LTL, scratches = {} ):
     ## I don't see how to specify the output memory
     return dot( Y, LTL.dot( Y ) )
@@ -84,7 +114,7 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     '''
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
-
+    
     # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
     P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
     C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
@@ -96,7 +126,7 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
 
     # Laplacian
     Y= 1.0 - ((1.0-Y) * exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma))  ) # TUNING
-
+    
     # Gaussian
     #Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
 
@@ -302,7 +332,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
             e += weights['w_fidelity_lsl2'] * E_fidelity_lsl2( Y, C, P, scratches )
         
         if 'w_ridge' in weights:
-            e += weights['w_ridge'] * E_ridge( Y, scratches )
+            e += weights['w_ridge'] * E_ridge( Y, C, P, scratches )
         
         if 'w_spatial_static' in weights:
             e += weights['w_spatial_static'] * E_spatial_static( Y, Yspatial_static_target, scratches )
@@ -332,7 +362,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
             total_gradient += gradient_term
         
         if 'w_ridge' in weights:
-            grad_E_ridge( Y, gradient_term, scratches )
+            grad_E_ridge( Y, C, P, gradient_term, scratches )
             gradient_term *= weights['w_ridge']
             total_gradient += gradient_term
         

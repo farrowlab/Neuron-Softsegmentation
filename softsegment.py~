@@ -1,13 +1,35 @@
 #
 # Soft Segmentation of Viral Labeled Neurons
-# adapted from Tan et al., (2015, SIGGRAPH): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
+# adapted from Tan et al., (2015): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
 #
-
-# Create a conda envirnemnt and install dependencies
+# Briefly: Least-squares optimization with Tikhonov (ridge) and l2-TV regularizations
+#           + l1 color difference weighting on layers in a*b*
+# ----------------------------------------------------------------------------------------------
+# Note: Create a conda envirnemnt and install dependencies [recommended]
+#       Check misc_code for used snipplets
+#
+# Fixed: 
+# - Uint16/uint8 reading and uint8 saving using single tifffile.py
+# - Computing color vertices (only number of colors is input)
+# - White color detection adn deletion (noninformative)
+# - Black backround is always 0th vertice
+#
+# To-do:
+# - Improve weighting function and hyperparameter tuning
+# - The last weighting before saving!
+# - Integrate preprocessing
 #
 
 from numpy import *
 from itertools import izip as zip
+from skimage import color     
+import scipy.optimize
+import time
+import os
+import json
+import sys
+
+
 '''
 def E_overlap( Y, C, P, scratches = {} ):
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
@@ -25,15 +47,46 @@ def grad_E_overlap(Y, C, P, out, scratches = {} ): # CHANGE THIS ONE
 
     out = temp.flatten() 
 '''
-def E_ridge( Y, scratches = {} ):
+def E_ridge( Y, C, P, scratches = {} ):
 
-	return -dot( Y, Y )
-	#return -sum( Y )
+	'''
+    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
 
-def grad_E_ridge( Y, out, scratches = {} ):
-    multiply( -2, Y, out )
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
+
+    sigma = 2.0  # increasing it makes robust
+
+    # Laplacian
+    we_ridge =  exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma)).ravel() # TUNING
+	'''
+    #return -dot( Y, Y*(1.0 - we_ridge) ) 
+    return -dot( Y, Y ) 
+    #return -sum( Y )
+
+def grad_E_ridge( Y, C, P, out, scratches = {} ):
+
+	'''
+    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
+
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
+
+    sigma = 2.0  # increasing it makes robust
+
+    # Laplacian
+    we_ridge =  exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma)).ravel() # TUNING
+
+	'''
+    #out = (1.0 - we_ridge)  * Y * -2
+    multiply( -2, Y, out ) 
     #out = -1 * ones(Y.shape)
-'''
+
+	'''
 def E_spatial_static( Y, Ytarget, scratches = {} ):
     if 'Y' not in scratches: scratches['Y'] = Y.copy()
     scratch = scratches['Y']
@@ -44,7 +97,8 @@ def E_spatial_static( Y, Ytarget, scratches = {} ):
 def grad_E_spatial_static( Y, Ytarget, out, scratches = {} ):
     subtract( Y, Ytarget, out )
     out *= 2
-'''
+	'''
+
 def E_tvl2( Y, LTL, scratches = {} ):
     ## I don't see how to specify the output memory
     return dot( Y, LTL.dot( Y ) )
@@ -62,51 +116,43 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     '''
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
+    '''
+    # Weight opacity (1 -Y) by laplacian/gaussian in a*b* color space [L* ignored]
+    P_temp = color.rgb2lab(transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
+    C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
 
-    # ver3 [faster] ----
-    # Weight opacity (1 -Y) by gaussian ***
-    #from skimage import color     
-    #P_temp = color.rgb2lab(tile(P, (C[1:,:].shape[0], 1, 1)))/100.0 #norm
-    #C_temp = color.rgb2lab(tile(C[1:,:], (P.shape[0], 1, 1)))/100.0
+    #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
+    #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    P_temp = tile(P, (C[1:,:].shape[0], 1, 1)) # ignore black [0,0,0]
-    #P_temp = tile(tile([0.8,0,0], (P.shape[0], 1)), (C[1:,:].shape[0], 1, 1)) # ignore black [0,0,0]
+    sigma = 2.0  # increasing it makes robust
 
-    C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
-    #C_temp = tile(tile([1.0,0,0], (8,1)), (P.shape[0], 1, 1))
+    # Laplacian
+    Y= 1.0 - ((1.0-Y) * exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma))  ) # TUNING
+    '''
+    # Gaussian
+    #Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
 
-    sigma = 2.0 # increasing it makes robust
-    Y= 1.0 - ((1.0-Y) * exp(mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))) # TUNING
-    #print exp(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2) /(-2.0*sigma))[10,:]
-
+    # _OLD -------------------------
     # signum ***
-    #temp = mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)
-    #Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.1, temp<=0.1], [0, 1]) ) # TUNING
-    #print  piecewise(temp, [temp>0.2, temp<=0.2], [0.1,0.9]) 
+    #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
+    #Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.08, temp<=0.08], [1, 0]) ) # TUNING
+ 	#Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.2, temp<=0.2], [1, 0]) ) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))   # TUNING
+    
+    # alternative signum [worthless]
+    #Y= 1.0 -  piecewise((1.0 - Y), [(1.0 - Y) > 0.15, (1.0 - Y) <= 0.15], [0, 1]) 
 
     # linear
-    #Y= 1.0 - ((1.0-Y) * (1.0 - mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2))) # TUNING
+    #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
+    #Y= 1.0 - ((1.0-Y) * (1.0 - temp)) # TUNING
 
     # quadratic 
-    #temp = mean((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)
+    #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
     #Y= 1.0 - ((1.0-Y) * (1.0 - temp)**2) # TUNING
 
     # Lorentzian ***
     #gamma =  1.0
     #print mean(gamma/(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)**2 + (gamma)**2 )   )
     #Y= 1.0 - ((1.0-Y) * gamma/(sum((moveaxis(P_temp, 0,1) - C_temp) * (moveaxis(P_temp, 0,1) - C_temp), axis= 2)**2 + (gamma)**2 )    ) # TUNING
-
-    ## ver2 ----
-    # CHANGE! C[0] is vector
-    #P_temp = tile(P, (C.shape[0], 1, 1))    
-    #for lay in range(C.shape[0]-1):
-    #	Y[:, lay] = 1.0 - ((1.0-Y[:, lay]) * (1.0 - exp(sqrt(sum((P_temp[lay,:,:].reshape(P.shape) - C[lay,:]) * (P_temp[lay,:,:].reshape(P.shape) - C[lay,:]))) /-2.0 ))) # weights reversed
-
-    ## ver1 ---
-    #for pix in range(P.shape[0]):
-   	#	for lay in range(C.shape[0]-1):
-   	#		#Y[pix, lay] *= exp(linalg.norm(P[pix,:], C[lay,:])/-2.0)
-   	#		Y[pix, lay] = 1.0 - ((1.0-Y[pix, lay]) * exp(sqrt(sum((P[pix,:] - C[lay,:]) * (P[pix,:] - C[lay,:]))) /-2.0 ))
 
     ## Allocate scratch space
     if 'F' not in scratches:
@@ -209,7 +255,6 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
     
     img = asfarray( img )
     layer_colors = asfarray( layer_colors )
-    print img.shape[2], layer_colors.shape[1]
     
     assert len( img.shape ) == 3 
     assert len( layer_colors.shape ) == 2
@@ -289,7 +334,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
             e += weights['w_fidelity_lsl2'] * E_fidelity_lsl2( Y, C, P, scratches )
         
         if 'w_ridge' in weights:
-            e += weights['w_ridge'] * E_ridge( Y, scratches )
+            e += weights['w_ridge'] * E_ridge( Y, C, P, scratches )
         
         if 'w_spatial_static' in weights:
             e += weights['w_spatial_static'] * E_spatial_static( Y, Yspatial_static_target, scratches )
@@ -319,7 +364,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
             total_gradient += gradient_term
         
         if 'w_ridge' in weights:
-            grad_E_ridge( Y, gradient_term, scratches )
+            grad_E_ridge( Y, C, P, gradient_term, scratches )
             gradient_term *= weights['w_ridge']
             total_gradient += gradient_term
         
@@ -365,8 +410,6 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     returns a rows-by-cols-#layers array of optimized Y values, which are (1-alpha).
     '''
     
-    import scipy.optimize
-    import time
     start = time.clock()
 
     Y0 = Y0.ravel()
@@ -436,7 +479,7 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     Y = Y.reshape( arr.shape[0], arr.shape[1], len( colors )-1 )
     return Y
 
-def run_one(Y0, imgpath, json_data, outprefix, color_vertices ,save_every = None, solve_smaller_factor = None, too_small = None):
+def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, solve_smaller_factor = None, too_small = None):
     #print imgpath
     '''
     Given a path `imgpath` to an image,
@@ -451,9 +494,7 @@ def run_one(Y0, imgpath, json_data, outprefix, color_vertices ,save_every = None
     runs optimize() on it and saves the output to e.g. `outprefix + "-layer01.png"`.
     '''
     
-    import json, os
     #from PIL import Image
-    import time
 
 #    with open(param_path) as json_file:
 #        json_data = json.load(json_file)
@@ -468,14 +509,14 @@ def run_one(Y0, imgpath, json_data, outprefix, color_vertices ,save_every = None
     weights = {'w_fidelity_lsl2':w_fidelity_lsl2, 'w_ridge':w_ridge, 'w_tvl2':w_tvl2}
     #order=json_data["vertex_order"]
     #colorpath = json_data["color_path"]
-'''
-    arr = asfarray(imgpath)
+    
+    #arr = asfarray(imgpath)
     arr_backup=arr.copy()
-    if is_uint8 ==1:
-        arr = arr/255.0
-    else:
-        arr = arr/65535.0
-'''
+    #if is_uint8 ==1:
+    #    arr = arr/255.0
+    #else:
+    #    arr = arr/65535.0
+    
 
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
@@ -564,11 +605,9 @@ def run_one(Y0, imgpath, json_data, outprefix, color_vertices ,save_every = None
     return Y
 
     # **************************
-def run_initial(imgpath, json_data, outprefix, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
+def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
     
-    import json, os
     #from PIL import Image
-    import time
 
  #   with open(param_path) as json_file:
  #       json_data = json.load(json_file)
@@ -583,14 +622,15 @@ def run_initial(imgpath, json_data, outprefix, color_vertices, save_every = None
     #order=json_data["vertex_order"]
     #colorpath = json_data["color_path"]
 
-    '''
-    arr = asfarray(imgpath)
+    #print max(arr.flatten())
+    #arr = asfarray(imgpath)
+
     arr_backup=arr.copy()
-    if is_uint8 ==1:
-        arr = arr/255.0
-    else:
-        arr = arr/65535.0
-    '''
+    #if is_uint8 ==1:
+    #    arr = arr/255.0
+    #else:
+    #    arr = arr/65535.0
+    
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
     colors_backup=colors.copy()
@@ -745,11 +785,9 @@ def save_results( Y, colors, img_shape, outprefix, order=[] , threshold_opacity 
 # ----------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    import sys
     sys.path.insert(0, 'misc_code/')
     param_path = 'params.json'
 
-    import json
     with open(param_path) as json_file:
         json_data = json.load(json_file)
 
@@ -761,7 +799,6 @@ if __name__ == '__main__':
     solve_smaller_factor = None
     too_small = None       
 
-    import time
     start=time.clock()
 
     print "-----------"
@@ -772,28 +809,47 @@ if __name__ == '__main__':
     #im_stack = io.imread(input_image)
     from tifffile import imread, imshow
     im_stack = imread(input_image)
-    n_image, row, col, ch = im_stack.shape
+    try:
+    	n_image, row, col, ch = im_stack.shape
+    except ValueError:
+    	row, col, ch = im_stack.shape
+    	im_stack = im_stack.reshape([1, row, col, ch])
+    	n_image, row, col, ch = im_stack.shape
+    	print '- It is a single image plane, not a stack'
+    #print im_stack.shape
+
+    print '- input stack path: ' + input_image
+    print '- output path: ' + output_folder
+
+    if ch > 3: # when reading 16 bit color stacks saved from ImageJ
+    	print '- Warn: # of color ch. =? ' + str(ch)
+    	print 'Swapping channels ..'
+    	im_stack = transpose(im_stack,(0,2,3,1))
+    	n_image, row, col, ch = im_stack.shape
+    	print im_stack.shape
 
     # Exception if the image not uint8 or uint16 
     assert im_stack.dtype in ['uint8', 'uint16']        
     if im_stack.dtype == 'uint16':
+        print 'uint16 stack reading ...'
         im_stack = asfarray(im_stack)/65535.0
-        max_projection = max((255.0 * im_stack).asndarray('uint8'), axis=0)
+        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
     else:
-    	im_stack = asfarray(im_stack)/255.0
-        max_projection = max((255.0 * im_stack).asndarray('uint8'), axis=0)
+        print 'uint8 stack reading ..,'
+        im_stack = asfarray(im_stack)/255.0
+        max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
 
-    if ch > 4: # when reading 16 bit color stacks saved from ImageJ
-    	print '# color ch. =? ' + str(ch)
-    	print 'swapping channels ..'
-    	im_stack = swapaxes(im_stack,3,1)
-    	n_image, row, col, ch = im_stack.shape
-
+    #print max_projection.shape
     from compute_color import compute_color
     color_vertices = compute_color(max_projection, N)
+
+    ## plane show
+    #from matplotlib import pyplot as plt
+    #imshow(im_stack[1,:,:,:])
+    #plt.show()
     
 
-    #for k in arange(n_image,):
+    #for k in [0]:
     for k in range(n_image):
 
         print "-----------"
