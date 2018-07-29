@@ -1,0 +1,14 @@
+*.pyc
+*.mexa64
+*.o
+*.so
+*.swp
+*__pycache__*
+build
+README.html
+.Rhistory
+dist
+docs/_build
+prox_tv.egg-info
+.tox/*
+.coverage

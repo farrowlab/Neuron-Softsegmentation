@@ -20,6 +20,9 @@
 # To-do:
 # - Integrate preprocessing
 # - TV-l1 for inpainting, since TV-l2 cannot do that (cannot possble with LBFGSB :/)
+# - Find vertices in HSV and process there to get more robust soft color segmentation (hsv is an angle based space :/)
+# - 16 bit case, results are dim. Saturate after normalization (percentile 99)
+#
 
 from numpy import *
 from itertools import izip as zip
@@ -817,7 +820,7 @@ if __name__ == '__main__':
     global SAVE_COLOR 
     SAVE_COLOR = json_data["SAVE_COLOR"]
 
-    save_every = 100000 # Intermediate saving step: Save [every] second [Not needed]
+    save_every = 1000000 # Intermediate saving step: Save [every] second [Not needed]
     solve_smaller_factor = None
     too_small = None       
 
@@ -857,6 +860,8 @@ if __name__ == '__main__':
     if im_stack.dtype == 'uint16':
         print 'uint16 stack reading ...'
         im_stack = asfarray(im_stack)/65535.0
+        print ''
+        im_stack =  (im_stack / percentile(im_stack, 99.3)).clip(0.0, 1.0) # allow little saturation in uint16
         max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
     else:
         print 'uint8 stack reading ...'
