@@ -9,7 +9,7 @@
 	"output_path3": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
 	"number_soft_segments": 6,
-	"threshold_opacity":0,
+	"threshold_opacity": 0,
 	"FAST": 1,
 	"SAVE_COLOR": 0,
 
