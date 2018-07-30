@@ -899,7 +899,7 @@ if __name__ == '__main__':
         if level_contrast_enhancement != 0:
             im = contrast_stretch(im, level_contrast_enhancement, 2, 98)
 
-        if level_contrast_enhancement != 0 and level_contrast_enhancement !=0:
+        if level_contrast_enhancement == 0 and level_contrast_enhancement ==0:
             im = im_stack[k,:,:,:]
       
         ## plane show
