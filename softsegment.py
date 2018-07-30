@@ -6,22 +6,25 @@
 #           + l1 color difference weighting on layers in a*b*
 # ----------------------------------------------------------------------------------------------
 # Note: Create a conda envirnemnt and install dependencies [recommended]
-#       Check misc_code for used libs
-#
+#       Apply BaSIC ImajeJ background substruction before [Jar plugin is already included]
+#       Check misc_code/ for used libs in soft segmentation
+#       Check preprocess/ for preprocessing code called here
+# 
+
 # Fixed: 
+# - Flattening and contrast stretching
 # - Uint16/uint8 reading and uint8 saving using single tifffile.py
 # - Computing color vertices (only number of colors is input)
 # - White color detection adn deletion (noninformative)
-# - Black backround is always 0th vertice
-# - Fidelity term weighting
+# - Making sure black backround color is always 0th row in color patrix
+# - Data fidelity term weighting [it is slow, make flag FAST=0]
 # - Final weighting
 
 #
 # To-do:
-# - Integrate preprocessing
-# - TV-l1 for inpainting, since TV-l2 cannot do that (cannot possble with LBFGSB :/)
+# - TV-l1 for inpainting, since TV-l2 cannot do that (is not possble with LBFGSB, non-smooth :/)
 # - Find vertices in HSV and process there to get more robust soft color segmentation (hsv is an angle based space :/)
-# - 16 bit case, results are dim. Saturate after normalization (percentile 99)
+#
 #
 
 from numpy import *
@@ -32,7 +35,6 @@ import time
 import os
 import json
 import sys
-
 
 '''
 def E_overlap( Y, C, P, scratches = {} ):
@@ -806,12 +808,21 @@ def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opa
 if __name__ == '__main__':
 
     sys.path.insert(0, 'misc_code/')
+    sys.path.insert(0, 'preprocess/flattening/')
+
     param_path = 'params.json'
 
     with open(param_path) as json_file:
         json_data = json.load(json_file)
 
     input_image=json_data["stack_path"]
+
+    level_flattening =json_data["level_flattening"]
+    level_contrast_enhancement =json_data["level_contrast_enhancement"]
+    iterations_flattening =json_data["iterations_flattening"]
+
+    #print level_flattening, level_contrast_enhancement
+
     N = json_data["number_soft_segments"]
     output_folder = json_data["output_path"]
     global RUN_FAST # global seemed easy at this moment
@@ -871,11 +882,6 @@ if __name__ == '__main__':
     #print max_projection.shape
     from compute_color import compute_color
     color_vertices = compute_color(max_projection, N)
-
-    ## plane show
-    #from matplotlib import pyplot as plt
-    #imshow(im_stack[1,:,:,:])
-    #plt.show()
     
 
     #for k in [0]:
@@ -884,12 +890,26 @@ if __name__ == '__main__':
         print "-----------"
         print  "Running "+ str(k+1) + "/"+str(n_image)  
 
+        ## Piecewise image recovery ---
+        from flatten import flatten, contrast_stretch
+        im = flatten(im_stack[k,:,:,:], iterations_flattening, level_flattening) # 2 iterations, level 11 
+
+        # Contrast enhance 1
+        if level_contrast_enhancement != 0:
+            im = contrast_stretch(im, level_contrast_enhancement, 2, 98)
+       
+        ## plane show
+        #from matplotlib import pyplot as plt
+        #imshow(im_stack[k,:,:,:])
+        #imshow(im)
+        #plt.show()
+
         # use image pyramid to initialize for the first one then propogate initilization
         if k==0:
-            Y0 = run_initial(im_stack[k,:,:,:], json_data, str(k), color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
+            Y0 = run_initial(im, json_data, str(k), color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
         else:
             Y0=Y_prev.copy()    
-        Y_prev = run_one( Y0, im_stack[k,:,:,:], json_data, str(k), color_vertices ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
+        Y_prev = run_one( Y0, im, json_data, str(k), color_vertices ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
     end=time.clock()
     print 'time: ', end - start
 

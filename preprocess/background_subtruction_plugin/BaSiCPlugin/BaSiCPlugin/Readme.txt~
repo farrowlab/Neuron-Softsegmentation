@@ -1,0 +1,56 @@
+About
+---------------
+BaSiC is a retrospective image correction method for optical microscopy, available as a Fiji/ImageJ Plugin. It can be used to correct both shading in space and background bleaching in time. BaSiC has been tested on the latest version of Fiji (http://fiji.sc) on Windows 7, Mac OS X and Linux systems. It may not work properly on an old version of Fiji/ImageJ. 
+
+Installation
+---------------
+To install the BaSiC Fiji/ImageJ plugin:
+1. Copy “BaSiC_.jar” to the “$FIJIROOT/plugins” folder of your Fiji/ImageJ installation.
+2. Copy all dependent jar files in the "Dependent" folder to your Fiji/ImageJ "$FIJIROOT/jars" directory.
+
+Note: If you get the error message 
+"java.lang.NoSuchMethodError: edu.emory.mathcs.utils.ConcurrencyUtils.submit"
+make sure that in your Fiji/ImageJ "$FIJIROOT/jars" directory, there is only one version of each jar from the "Dependent" folder (keep our version, i.e. replace jtransforms-2.4.jar with our jtransform.jar).
+
+Demo: we use a bright-field time-lapse movie of blood stem cell to demonstrate the usage of BaSiC in both graphic interface and macro operation. 
+---------------
+Graphic interface: 
+0. Open Fiji/ImageJ
+1. Import the image stack in "Demoexample/Timelapse_brightfield/Uncorrected" via Import -> Image sequence. In the Sequence Options, set Increment = 10 so that we import a image subset of 10 images.  
+2. Open BaSiC via Plugins->BaSiC
+3. Firstly we estimate shading profiles by setting parameters as shown in ‘BaSiC_protocol_stepI.jpg’. Click OK. Processing 10 images should take less than 1 min.
+4. Save the estimated flat-field as Flat-field.tif via File->Save as->Flat-field.tif for future use.
+5. We import the the entire image stack (100 images) in "Demoexample/Timelapse_brightfield/Uncorrected" via Import -> Image sequence. We also open Flat-field.tif. In this step, we skip the shading estimation, use the precomputed flat-field as an input and only correct temporal drift. The parameter setting is shown in "BaSiC_protocal_stepII.jpg’. 
+6. The corrected image stack will be displayed. Note that both the poor illumination at the right edge of the images, and the temporal flickering and flashing in the original movie (e.g. frame 4 is darker than both its neighbouring frames 3 and 5) has been corrected by BaSiC (as shown in the Uncorr_vs_corr.jpg). The dynamics of the mean image intensity can be visualised using Fiji->Image->Stacks->Plot Z-axis Profile).
+
+One can also combine Step I and II into a single step by setting parameter as "BaSiC_protocal_singlestep.jpg’. In this way, both the shading and the temporal drift are estimated from the whole image sequence (100 images), which should be a bit slower than doing these two steps separately.
+
+IJ macro operation:
+0. Open Fiji/ImageJ
+1. Open a new script from File->New->Script. Setting script language into IJ1 Macro
+2. Copy the command in the "BaSiC_protocol_stepIandII.ijm" to your script. Note that you have to change the path to the image stack to your own one.
+3. Runing the script
+
+Similar to graphic interface, one can also combine Step I and II into a single run using "BaSiC_protocol_singlestep.ijm".
+
+
+The detailed instruction to run other examples are given in "Demoexamples_readme.txt".
+
+General usage
+---------------
+a) If you have multi-channel images, split them into single channels and perform corrections channel by channel.
+b) BaSiC provides the "Ignore dark-field" option to estimate flat-field only. This is faster and more stable than the simultaneous estimation of both flat-field and dark-field. "Ignore dark-field" can be used in several typical circumstances:
+- If you have an accurate offset measurement (e.g. through dark-field calibration), you can subtract the dark-field from your image sequence and tick ”Ignore dark-field".
+- If you correct bright field images, the dark-field is usually negligible.
+- If your fluorescence images have been pre-converted into 8-bits from raw microscopy images (usually in 16-bits/32-bits) by scaling the dynamic range to min-max intensities, your dark-field might be already corrected during the rescaling. 
+c) BaSiC can also be used for prospective shading correction by ticking "Skip estimation and use predefined shading profiles" in the "Shading_estimation" option. In this case, prospectively collected flat-field and dark-field are selected as BaSiC inputs. BaSiC has a built-in normalizing step to scale any flat-field image to have a unit mean. Yet it is necessary to makes sure the dark-field image represents the original "dark-field" values that should be subtracted from the entire image sequence, rather than a scaled version which is in a different dynamic range. 
+c) For time-lapse movies, you can remove temporal drift by ticking either
+- "Replace with zero" (background is estimated for each frame and then removed completely) or by ticking
+- "Replace with temporal mean" (background is estimated for each frame and then replaced with the temporal mean of all frames. This is recommend for bright-field movies).
+d) Use the automatic parameter settings. Only adjust parameters manually when the automatic setting does not work for you.
+
+Refer to Supplementary Note 7 in the BaSiC manuscript for further practical tips.
+   
+============
+
+Copyright © 2016 Tingying Peng, Helmholtz Zentrum München and TUM (Technical University of Munich), Germany. All rights reserved.
