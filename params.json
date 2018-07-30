@@ -1,12 +1,12 @@
 { 
-	"stack_path": "input/test_uint16.tif", 
-	"output_path": "output/",
+	"stack_path4": "input/test_uint16.tif", 
+	"output_path4": "output/",
 
 	"stack_path2": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
 	"output_path2": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
 
-	"stack_path3": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_s15c1_sliced.tif", 
-	"output_path3": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
+	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_basic_rgb_30-150.tif", 
+	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
 	"number_soft_segments": 6,
 	"threshold_opacity": 0,
@@ -17,8 +17,8 @@
 	"w_ridge": 2, 
 	"w_tvl2": 20.0, 
 
-	"level_contrast_enhancement": 5, 
-	"level_flattening": 11, 
+	"level_contrast_enhancement": 0, 
+	"level_flattening": 9, 
 	"iterations_flattening": 2, 
 
 	"Note1": "40-1-10 def"

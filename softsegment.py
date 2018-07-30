@@ -884,23 +884,22 @@ if __name__ == '__main__':
     color_vertices = compute_color(max_projection, N)
     
 
-    #for k in [0]:
+    #for k in [80]:
     for k in range(n_image):
 
         print "-----------"
         print  "Running "+ str(k+1) + "/"+str(n_image)  
 
+        im = im_stack[k,:,:,:]
+
         ## Piecewise image recovery ---
         from flatten import flatten, contrast_stretch
-        if level_contrast_enhancement !=0:
-            im = flatten(im_stack[k,:,:,:], iterations_flattening, level_flattening) # 2 iterations, level 11 
+        if level_flattening !=0:
+            im = flatten(im, iterations_flattening, level_flattening) # 2 iterations, level 11 
 
         # Contrast enhance 1
         if level_contrast_enhancement != 0:
             im = contrast_stretch(im, level_contrast_enhancement, 2, 98)
-
-        if level_contrast_enhancement == 0 and level_contrast_enhancement ==0:
-            im = im_stack[k,:,:,:]
       
         ## plane show
         #from matplotlib import pyplot as plt
