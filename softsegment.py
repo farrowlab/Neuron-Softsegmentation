@@ -9,9 +9,9 @@
 #       Apply BaSIC ImajeJ background substruction before [Jar plugin is already included]
 #       Check misc_code/ for used libs in soft segmentation
 #       Check preprocess/ for preprocessing code called here
-# 
+#
 
-# Fixed: 
+# Fixed:
 # - Flattening and contrast stretching
 # - Uint16/uint8 reading and uint8 saving using single tifffile.py
 # - Computing color vertices (only number of colors is input)
@@ -19,17 +19,18 @@
 # - Making sure black backround color is always 0th row in color patrix
 # - Data fidelity term weighting [it is slow, make flag FAST=0]
 # - Final weighting
+# - uint16 normalization [0, 1] dims image, enhanced
 
 #
 # To-do:
 # - TV-l1 for inpainting, since TV-l2 cannot do that (is not possble with LBFGSB, non-smooth :/)
 # - Find vertices in HSV and process there to get more robust soft color segmentation (hsv is an angle based space :/)
-#
-#
+# - exp_factor can be too high somites (not adaptive and changes depending on images)
+# - When noisy, max projection does not result in black pixels
 
 from numpy import *
 from itertools import izip as zip
-from skimage import color     
+from skimage import color
 import scipy.optimize
 import time
 import os
@@ -51,7 +52,7 @@ def grad_E_overlap(Y, C, P, out, scratches = {} ): # CHANGE THIS ONE
         temp[:,k] = prod(delete(Y,k,1), axis=1) * -1.0
         #temp[:,k] = prod(delete((1.0-Y),k,1), axis=1) * 100
 
-    out = temp.flatten() 
+    out = temp.flatten()
 '''
 def E_ridge( Y, C, P, scratches = {} ):
 
@@ -68,8 +69,8 @@ def E_ridge( Y, C, P, scratches = {} ):
     # Laplacian
     we_ridge =  exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma)).ravel() # TUNING
     '''
-    #return -dot( Y, Y*(1.0 - we_ridge) ) 
-    return -dot( Y, Y ) 
+    #return -dot( Y, Y*(1.0 - we_ridge) )
+    return -dot( Y, Y )
 
 def grad_E_ridge( Y, C, P, out, scratches = {} ):
 
@@ -88,13 +89,13 @@ def grad_E_ridge( Y, C, P, out, scratches = {} ):
 
     '''
     #out = (1.0 - we_ridge)  * Y * -2
-    multiply( -2, Y, out ) 
+    multiply( -2, Y, out )
 
 '''
 def E_spatial_static( Y, Ytarget, scratches = {} ):
     if 'Y' not in scratches: scratches['Y'] = Y.copy()
     scratch = scratches['Y']
-    
+
     subtract( Y, Ytarget, scratch )
     return dot( scratch, scratch )
 
@@ -132,7 +133,7 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
 
         # Laplacian
         Y= 1.0 - ((1.0-Y) * exp(mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) /(-2.0*sigma))  ) # TUNING
-		    
+
         # Gaussian
         #Y= 1.0 - ((1.0-Y) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))  ) # TUNING
 
@@ -141,15 +142,15 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
     #Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.08, temp<=0.08], [1, 0]) ) # TUNING
  	#Y= 1.0 - ((1.0-Y) * piecewise(temp, [temp>0.2, temp<=0.2], [1, 0]) ) * exp(mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2) /(-2.0*sigma))   # TUNING
-    
+
     # alternative signum [worthless]
-    #Y= 1.0 -  piecewise((1.0 - Y), [(1.0 - Y) > 0.15, (1.0 - Y) <= 0.15], [0, 1]) 
+    #Y= 1.0 -  piecewise((1.0 - Y), [(1.0 - Y) > 0.15, (1.0 - Y) <= 0.15], [0, 1])
 
     # linear
     #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
     #Y= 1.0 - ((1.0-Y) * (1.0 - temp)) # TUNING
 
-    # quadratic 
+    # quadratic
     #temp = mean((P_temp - C_temp) * (P_temp - C_temp), axis= 2)
     #Y= 1.0 - ((1.0-Y) * (1.0 - temp)**2) # TUNING
 
@@ -161,36 +162,36 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
     ## Allocate scratch space
     if 'F' not in scratches:
         scratches['F'] = empty( P.shape, dtype = Y.dtype )
-    F = scratches['F'] 
-    
+    F = scratches['F']
+
     if 'M' not in scratches:
         ## We want the non-flattened Y's shape.
         assert len( Y.shape ) > 1
         scratches['M'] = empty( Y.shape, dtype = Y.dtype )
     M = scratches['M']
-    
+
     if 'D' not in scratches:
         scratches['D'] = empty( ( C.shape[0]-1, C.shape[1] ), dtype = Y.dtype )
     D = scratches['D']
-    
+
     if 'DM' not in scratches:
         scratches['DM'] = empty( ( P.shape[0], D.shape[0], D.shape[1] ), dtype = Y.dtype )
     DM = scratches['DM']
-    
+
     if 'energy_presquared' not in scratches:
         scratches['energy_presquared'] = empty( F.shape, dtype = Y.dtype )
     energy_presquared = scratches['energy_presquared']
-    
+
     ## Compute F
     subtract( C[newaxis,-1,:], P, F )
-    
+
     ## Compute M
     cumprod( Y[:,::-1], axis = 1, out = M )
     M = M[:,::-1]
-    
+
     ## Compute D
     subtract( C[:-1,:], C[1:,:], D )
-    
+
     ## Finish the computation
     multiply( D[newaxis,...], M[...,newaxis], DM )
     DM.sum( 1, out = energy_presquared )
@@ -198,33 +199,33 @@ def E_fidelity_lsl2_pieces( Y, C, P, scratches = {} ):
 
 def E_fidelity_lsl2( Y, C, P, scratches = {} ):
     E_fidelity_lsl2_pieces( Y, C, P, scratches )
-    
+
     energy_presquared = scratches['energy_presquared']
-    
+
     square( energy_presquared, energy_presquared )
     #print energy_presquared.shape
     return energy_presquared.sum()
 
 def gradY_E_fidelity_lsl2( Y, C, P, out, scratches = {} ):
     E_fidelity_lsl2_pieces( Y, C, P, scratches )
-    
+
     ### Reshape Y the way we want it.
     Y = Y.reshape( ( P.shape[0], C.shape[0]-1 ) )
-    
+
     energy_presquared = scratches['energy_presquared']
     D = scratches['D']
     M = scratches['M']
     DM = scratches['DM']
-    
+
     if 'Mi' not in scratches:
         scratches['Mi'] = empty( DM.shape, dtype = Y.dtype )
     Mi = scratches['Mi']
     assert Mi.shape[1] == Y.shape[1]
-    
+
     if 'Yli' not in scratches:
         scratches['Yli'] = empty( Y.shape[0], dtype = Y.dtype )
     Yli = scratches['Yli']
-    
+
     for li in range( Y.shape[1] ):
         Yli[:] = Y[:,li]
         Y[:,li] = 1.
@@ -234,10 +235,10 @@ def gradY_E_fidelity_lsl2( Y, C, P, out, scratches = {} ):
         Y[:,li] = Yli
         Mr = M[:,::-1]
         Mr[:,li+1:] = 0.
-        
+
         multiply( D[newaxis,...], Mr[...,newaxis], DM )
         DM.sum( 1, out = Mi[:,li,:] )
-    
+
     multiply( energy_presquared[:,newaxis,:], Mi, Mi )
     out.shape = Y.shape
     Mi.sum( 2, out = out )
@@ -256,28 +257,28 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
         where e( Y ) computes the scalar energy of a flattened rows-by-cols-by-#layers array of (1-alpha) values,
         and g( Y ) computes the gradient of e.
     '''
-    
+
     img = asfarray( img )
     layer_colors = asfarray( layer_colors )
-    
-    assert len( img.shape ) == 3 
+
+    assert len( img.shape ) == 3
     assert len( layer_colors.shape ) == 2
     assert img.shape[2] == layer_colors.shape[1]
-    
+
     #from pprint import pprint
     # pprint( weights )
     assert set( weights.keys() ).issubset( set([ 'w_fidelity_lsl2', 'w_ridge', 'w_spatial_static', 'w_tvl2' ]) )
 
     C = layer_colors
     P = img.reshape( -1, img.shape[2] )
-    
+
     num_layers = C.shape[0]-1
     Ylen = P.shape[0] * num_layers
-    
+
     if 'w_spatial_static' in weights:
         assert img_spatial_static_target is not None
         Yspatial_static_target = img_spatial_static_target.ravel()
-    
+
     if 'w_tvl2' in weights:
         # print 'Preparing a Laplacian matrix for E_tvl2...'
         import fast_energy_laplacian
@@ -295,7 +296,7 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
         ## Store the shape. It's a good habit, because there may not be a nonzero
         ## element in the last row and column.
         shape = LTL.shape
-        
+
         ## There is a "fastest" version below.
         '''
         rows = zeros( LTL.nnz * num_layers, dtype = int )
@@ -309,40 +310,40 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
             #    rows.append( r*num_layers + k )
             #    cols.append( c*num_layers + k )
             #    vals.append( val )
-            
+
             ## Faster
             rows[ count : count + num_layers ] = r*num_layers + ks
             cols[ count : count + num_layers ] = c*num_layers + ks
             vals[ count : count + num_layers ] = val
             count += num_layers
-            
+
         assert count == LTL.nnz * num_layers
         '''
-        
+
         ## Fastest
         ks = arange( num_layers )
         rows = ( repeat( asarray( LTL.row ).reshape( LTL.nnz, 1 ) * num_layers, num_layers, 1 ) + ks ).ravel()
         cols = ( repeat( asarray( LTL.col ).reshape( LTL.nnz, 1 ) * num_layers, num_layers, 1 ) + ks ).ravel()
         vals = ( repeat( asarray( LTL.data ).reshape( LTL.nnz, 1 ), num_layers, 1 ) ).ravel()
-        
+
         LTL = scipy.sparse.coo_matrix( ( vals, ( rows, cols ) ), shape = ( shape[0]*num_layers, shape[1]*num_layers ) ).tocsr()
         # print '...Finished.'
-    
+
     if scratches is None:
         scratches = {}
-    
+
     def e( Y ):
         e = 0.
-        
+
         if 'w_fidelity_lsl2' in weights:
             e += weights['w_fidelity_lsl2'] * E_fidelity_lsl2( Y, C, P, scratches )
-        
+
         if 'w_ridge' in weights:
             e += weights['w_ridge'] * E_ridge( Y, C, P, scratches )
-        
+
         if 'w_spatial_static' in weights:
             e += weights['w_spatial_static'] * E_spatial_static( Y, Yspatial_static_target, scratches )
-        
+
         if 'w_tvl2' in weights:
             e += weights['w_tvl2'] * E_tvl2( Y, LTL, scratches )
 
@@ -350,38 +351,38 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
         #e += E_overlap(Y,C,P,scratches)
         #print E_overlap(Y,C,P,scratches)
         return e
-    
+
     ## Preallocate this memory
     gradient_space = [ zeros( Ylen ), zeros( Ylen ) ]
     # total_gradient = zeros( Ylen )
     # gradient_term = zeros( Ylen )
-    
+
     def g( Y ):
         total_gradient = gradient_space[0]
         gradient_term = gradient_space[1]
-        
+
         total_gradient[:] = 0.
-        
+
         if 'w_fidelity_lsl2' in weights:
             gradY_E_fidelity_lsl2( Y, C, P, gradient_term, scratches )
             gradient_term *= weights['w_fidelity_lsl2']
             total_gradient += gradient_term
-        
+
         if 'w_ridge' in weights:
             grad_E_ridge( Y, C, P, gradient_term, scratches )
             gradient_term *= weights['w_ridge']
             total_gradient += gradient_term
-        
+
         if 'w_spatial_static' in weights:
             grad_E_spatial_static( Y, Yspatial_static_target, gradient_term, scratches )
             gradient_term *= weights['w_spatial_static']
             total_gradient += gradient_term
-        
+
         if 'w_tvl2' in weights:
             grad_E_tvl2( Y, LTL, gradient_term, scratches )
             gradient_term *= weights['w_tvl2']
             total_gradient += gradient_term
-        
+
         #grad_E_overlap( Y, C, P, gradient_term, scratches )
         #total_gradient += gradient_term
 
@@ -394,14 +395,14 @@ def gen_energy_and_gradient( img, layer_colors, weights, img_spatial_static_targ
 
 def composite_layers( layers ):
     layers = asfarray( layers )
-    
+
     ## Start with ridge white.
     out = 255*ones( layers[0].shape )[:,:,:3]
     for layer in layers:
         out += layer[:,:,3:]/255.*( layer[:,:,:3] - out )
-    
+
     return out
-      
+
 def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratches = None, saver = None ):
     '''
     Given a rows-by-cols-by-#channels array 'arr', where channels are the 3 color channels,
@@ -413,18 +414,18 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     and an optional parameter 'saver' which will be called after every iteration with the current state of Y.
     returns a rows-by-cols-#layers array of optimized Y values, which are (1-alpha).
     '''
-    
+
     start = time.clock()
 
     Y0 = Y0.ravel()
-    
+
     Ylen = len( Y0 )
 
     e, g = gen_energy_and_gradient( arr, colors, weights, img_spatial_static_target = img_spatial_static_target, scratches = scratches )
-    
+
     bounds = zeros( ( Ylen, 2 ) )
     bounds[:,1] = 1.
-    
+
     ## Save the result-in-progress in case the users presses control-C.
     ## [number of iterations, last Y]
     Ysofar = [0,None]
@@ -433,12 +434,12 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
         ## Make a copy
         xk = array( xk )
         Ysofar[1] = xk
-        
+
         if saver is not None: saver( xk )
-    
+
     # print 'Optimizing...'
     # start = time.clock()
-    
+
     try:
         ## WOW! TNC does a really bad job on our problem.
         # opt_result = scipy.optimize.minimize( e, Y0, method = 'TNC', jac = g, bounds = bounds )
@@ -453,30 +454,30 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
 
         opt_result = scipy.optimize.minimize( e, Y0, jac = g, bounds = bounds, callback = callback
           ,method='L-BFGS-B'
-        
+
           ,options={'ftol': 1e-4, 'gtol': 1e-4}
          # ,options={'gtol': 1e-4} # Not optimum but faster CHANGED
-        
+
          )
 
         #opt_result=scipy.optimize.least_squares(e, Y0, jac = g, bounds = (0, 1), loss='huber',ftol= 1e-5, gtol= 1e-5) # Huber is a soft-L1 norm
-        
-    
+
+
     except KeyboardInterrupt:
-        ## If the user 
+        ## If the user
         print 'KeyboardInterrupt after %d iterations!' % Ysofar[0]
         Y = Ysofar[1]
         ## Y will be None if we didn't make it through 1 iteration before a KeyboardInterrupt.
         if Y is None:
             Y = -31337*ones( ( arr.shape[0], arr.shape[1], len( colors )-1 ) )
-    
+
     else:
         # print opt_result
         Y = opt_result.x
-    
+
     # duration = time.clock() - start
     # print '...Finished optimizing in %.3f seconds.' % duration
-    
+
     end = time.clock()
     print 'Optimize an image of size ', Y.shape, ' took ', (end-start), ' seconds.'
 
@@ -497,7 +498,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     the limit of the `solve_smaller_factor` recursion as the minimum image size (width or height),
     runs optimize() on it and saves the output to e.g. `outprefix + "-layer01.png"`.
     '''
-    
+
     #from PIL import Image
 
 #    with open(param_path) as json_file:
@@ -513,34 +514,34 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     weights = {'w_fidelity_lsl2':w_fidelity_lsl2, 'w_ridge':w_ridge, 'w_tvl2':w_tvl2}
     #order=json_data["vertex_order"]
     #colorpath = json_data["color_path"]
-    
+
     #arr = asfarray(imgpath)
     arr_backup=arr.copy()
     #if is_uint8 ==1:
     #    arr = arr/255.0
     #else:
     #    arr = arr/65535.0
-    
+
 
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
     colors_backup=colors.copy()
     colors=colors[order,:]/255.0
-    
+
     assert solve_smaller_factor is None or int( solve_smaller_factor ) == solve_smaller_factor
-    
+
     if save_every is None:
         save_every = 100.
-    
+
     if solve_smaller_factor is None:
         solve_smaller_factor = 2
-    
+
     if too_small is None:
         too_small = 5
-    
+
     # arr = arr[:1,:1,:]
     # colors = colors[:3]
-    
+
     kSaveEverySeconds = save_every
     ## [ number of iterations, time of last save, arr.shape ]
     last_save = [ None, None, None ]
@@ -550,7 +551,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
         last_save[2] = arr_shape
     def saver( xk ):
         arr_shape = last_save[2]
-        
+
         last_save[0] += 1
         now = time.clock()
         ## Save every 10 seconds!
@@ -560,14 +561,14 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
             ## Get the time again instead of using 'now', because that doesn't take into
             ## account the time to actually save the images, which is a lot for large images.
             last_save[1] = time.clock()
-    
+
     Ylen = arr.shape[0]*arr.shape[1]*( len(colors) - 1 )
-    
+
     # Y0 = random.random( Ylen )
     # Y0 = zeros( Ylen ) + 0.0001
     #Y0 = .5*ones( Ylen )
     # Y0 = ones( Ylen )
-    
+
     static = None
    # if weightspath is not None:
     #    weights = json.load( open( weightspath ) )
@@ -585,23 +586,23 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
     if 'w_fidelity_lsl2' in weights:
         # weights['w_fidelity_lsl2'] *= 50000.0 #### old one is 255*255
         weights['w_fidelity_lsl2'] /= arr.shape[2]
-    
+
     if 'w_ridge' in weights:
         weights['w_ridge'] /= num_layers
-    
+
     if 'w_spatial_static' in weights:
         weights['w_spatial_static'] /= num_layers
-    
+
     if 'w_tvl2' in weights:
         weights['w_tvl2'] /= num_layers
 
     reset_saver( arr.shape )
     Y = optimize( arr, colors, Y0, weights, img_spatial_static_target = static, saver = saver )
-    
+
     composite_img=save_results( Y, colors, arr, arr.shape, outprefix, order, threshold_opacity )
     img_diff=composite_img-arr_backup
     RMSE=sqrt(square(img_diff).sum()/(composite_img.shape[0]*composite_img.shape[1]))
-    
+
     print 'img_shape is: ', img_diff.shape
     #print 'max dist: ', sqrt(square(img_diff).sum(axis=2)).max()
     #print 'median dist', median(sqrt(square(img_diff).sum(axis=2)))
@@ -610,7 +611,7 @@ def run_one(Y0, arr, json_data, outprefix, color_vertices ,save_every = None, so
 
     # **************************
 def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, solve_smaller_factor = None, too_small = None):
-    
+
     #from PIL import Image
 
  #   with open(param_path) as json_file:
@@ -634,27 +635,27 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
     #    arr = arr/255.0
     #else:
     #    arr = arr/65535.0
-    
+
     #colors = asfarray(json.load(open(colorpath))['vs'])
     colors =  asfarray(color_vertices.reshape(color_vertices.shape[0],3))
     colors_backup=colors.copy()
     colors=colors[order,:]/255.0
     #print colors.shape
-    
+
     assert solve_smaller_factor is None or int( solve_smaller_factor ) == solve_smaller_factor
-    
+
     if save_every is None:
         save_every = 100.
-    
+
     if solve_smaller_factor is None:
         solve_smaller_factor = 2
-    
+
     if too_small is None:
         too_small = 5
-    
+
     # arr = arr[:1,:1,:]
     # colors = colors[:3]
-    
+
     kSaveEverySeconds = save_every
     ## [ number of iterations, time of last save, arr.shape ]
     last_save = [ None, None, None ]
@@ -664,7 +665,7 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
         last_save[2] = arr_shape
     def saver( xk ):
         arr_shape = last_save[2]
-        
+
         last_save[0] += 1
         now = time.clock()
         ## Save every 10 seconds!
@@ -674,14 +675,14 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
             ## Get the time again instead of using 'now', because that doesn't take into
             ## account the time to actually save the images, which is a lot for large images.
             last_save[1] = time.clock()
-    
+
     Ylen = arr.shape[0]*arr.shape[1]*( len(colors) - 1 )
-    
+
     # Y0 = random.random( Ylen )
     # Y0 = zeros( Ylen ) + 0.0001
     Y0 = .5*ones( Ylen )
     # Y0 = ones( Ylen )
-    
+
     static = None
     #if weightspath is not None:
     #    weights = json.load( open( weightspath ) )
@@ -699,24 +700,24 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
     if 'w_fidelity_lsl2' in weights:
         # weights['w_fidelity_lsl2'] *= 50000.0 #### old one is 255*255
         weights['w_fidelity_lsl2'] /= arr.shape[2]
-    
+
     if 'w_ridge' in weights:
         weights['w_ridge'] /= num_layers
-    
+
     if 'w_spatial_static' in weights:
         weights['w_spatial_static'] /= num_layers
-    
+
     if 'w_tvl2' in weights:
         weights['w_tvl2'] /= num_layers
 
-    
+
     #if solve_smaller_factor != 1:
     #    assert solve_smaller_factor > 1
         def optimize_smaller( solve_smaller_factor, large_arr, large_Y0, large_img_spatial_static_target ):
             ## Terminate recursion if the image is too small.
             if large_arr.shape[0]//solve_smaller_factor < too_small or large_arr.shape[1]//solve_smaller_factor < too_small:
                 return large_Y0
-            
+
             ## small_arr = downsample( large_arr )
             small_arr = large_arr[::solve_smaller_factor,::solve_smaller_factor]
             ## small_Y0 = downsample( large_Y0 )
@@ -725,18 +726,18 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
             small_img_spatial_static_target = None
             if large_img_spatial_static_target is not None:
                 small_img_spatial_static_target = large_img_spatial_static_target.reshape( arr.shape[0], arr.shape[1], -1 )[::solve_smaller_factor,::solve_smaller_factor].ravel()
-            
+
             ## get an improved Y by recursively shrinking
             small_Y1 = optimize_smaller( solve_smaller_factor, small_arr, small_Y0, small_img_spatial_static_target )
-            
+
             ## solve on the downsampled problem
             print '==> Optimizing on a smaller image:', small_arr.shape, 'instead of', large_arr.shape
             reset_saver( small_arr.shape )
             small_Y = optimize( small_arr, colors, small_Y1, weights, img_spatial_static_target = small_img_spatial_static_target, saver = saver )
-            
+
             ## save the intermediate solution.
             saver( small_Y )
-            
+
             ## large_Y1 = upsample( small_Y )
             ### 1 Make a copy
             large_Y1 = array( large_Y0 ).reshape( large_arr.shape[0], large_arr.shape[1], -1 )
@@ -748,16 +749,16 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
             ### 3 The right and bottom edges may have been missed due to rounding
             # large_Y1[ small_Y.shape[0]*solve_smaller_factor:, : ] = large_Y1[ small_Y.shape[0]*solve_smaller_factor - 1 : small_Y.shape[0]*solve_smaller_factor, : ]
             # large_Y1[ :, small_Y.shape[1]*solve_smaller_factor: ] = large_Y1[ :, small_Y.shape[1]*solve_smaller_factor - 1 : small_Y.shape[1]*solve_smaller_factor ]
-            
+
             return large_Y1.ravel()
-        
+
         Y0_initial = optimize_smaller( solve_smaller_factor, arr, Y0, static )
-    
+
     reset_saver( arr.shape )
     return Y0_initial
 
 
-def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out 
+def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out
     #from PIL import Image
     import tifffile as tifffile
 
@@ -765,13 +766,13 @@ def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opa
     Y[Y>(1-float(threshold_opacity)/255.0)] = 1.0
     P = img.reshape(-1, img.shape[2] ).copy()
     # Last weighting
-    from skimage import color     
+    from skimage import color
     P_temp = color.rgb2lab(transpose(tile(P, (colors[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
     C_temp = color.rgb2lab(tile(colors[1:,:], (P.shape[0], 1, 1)))[:,:,1:]/100.0
     #P_temp = transpose(tile(P, (C[1:,:].shape[0], 1, 1)), (1,0,2)) # ignore black [0,0,0]
     #C_temp = tile(C[1:,:], (P.shape[0], 1, 1))
 
-    # 
+    #
     #final_weight_linear = (1.0 - mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) ) # LINEAR
     final_weight_q1 = (1.0 - mean(absolute(P_temp - C_temp), axis= 2) )**2 # QUADRATIC
     #final_weight_q2 = 1.0 - (mean(sqrt((P_temp - C_temp) * (P_temp - C_temp)), axis= 2) )**2 # QUADRATIC2
@@ -790,12 +791,12 @@ def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opa
         outpath = output_folder+str(order[lay_folder]) +'/'+ outprefix + '-layer%02d.png' % li
         outpath_tiff = output_folder+'layer%02d.tif' % li
         #Image.fromarray( layer ).save( outpath )
-        if ( li != 0 ): tifffile.imsave(outpath_tiff, layer[:,:,3] , append='True')  # save alphas as tiff stacks	(except 0th beackground)		
-        if ( li != 0 ) and SAVE_COLOR==1: tifffile.imsave(outpath_tiff+'_colored', layer, append='True')  # save alphas as tiff stacks	(except 0th beackground)		
+        if ( li != 0 ): tifffile.imsave(outpath_tiff, layer[:,:,3] , append='True')  # save alphas as tiff stacks	(except 0th beackground)
+        if ( li != 0 ) and SAVE_COLOR==1: tifffile.imsave(outpath_tiff+'_colored', layer, append='True')  # save alphas as tiff stacks	(except 0th beackground)
 
         #print 'Saved layer:', outpath
         lay_folder = lay_folder +1
-    
+
     composited = composite_layers( layers )
     composited = composited.round().clip( 0, 255 ).astype( uint8 )
     #outpath2 = output_folder+'composite/' + outprefix + '-composite.png'
@@ -820,6 +821,11 @@ if __name__ == '__main__':
     level_flattening =json_data["level_flattening"]
     level_contrast_enhancement =json_data["level_contrast_enhancement"]
     iterations_flattening =json_data["iterations_flattening"]
+    start_plane =json_data["start_plane"]
+    end_plane =json_data["end_plane"]
+    drop_color =json_data["drop_color"]
+    compute_color_vertices =json_data["compute_color_vertices"]
+    manual_vertices =json_data["manual_vertices"]
 
     #print level_flattening, level_contrast_enhancement
 
@@ -828,15 +834,15 @@ if __name__ == '__main__':
     global RUN_FAST # global seemed easy at this moment
     RUN_FAST = json_data["FAST"]
 
-    global SAVE_COLOR 
+    global SAVE_COLOR
     SAVE_COLOR = json_data["SAVE_COLOR"]
 
     save_every = 1000000 # Intermediate saving step: Save [every] second [Not needed]
     solve_smaller_factor = None
-    too_small = None       
+    too_small = None
 
-    start=time.clock()
-    
+    start_all=time.clock()
+
     print '-----------------------------------------------'
     print "Running from stack ..."
     if RUN_FAST == 0:
@@ -866,41 +872,62 @@ if __name__ == '__main__':
     	n_image, row, col, ch = im_stack.shape
     	print im_stack.shape
 
-    # Exception if the image not uint8 or uint16 
-    assert im_stack.dtype in ['uint8', 'uint16']        
+    # Exception if the image not uint8 or uint16
+    assert im_stack.dtype in ['uint8', 'uint16']
     if im_stack.dtype == 'uint16':
         print 'uint16 stack reading ...'
         im_stack = asfarray(im_stack)/65535.0
         print ''
         im_stack =  (im_stack / percentile(im_stack, 99.3)).clip(0.0, 1.0) # allow little saturation in uint16
         max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+        min_projection = (255.0 * im_stack).astype('uint8').min(axis=0)
+        mean_projection = floor((255.0 * im_stack).astype('uint8').mean(axis=0))
+
     else:
         print 'uint8 stack reading ...'
         im_stack = asfarray(im_stack)/255.0
         max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
+        min_projection = (255.0 * im_stack).astype('uint8').min(axis=0)
+        mean_projection = floor((255.0 * im_stack).astype('uint8').mean(axis=0))
 
-    #print max_projection.shape
-    from compute_color import compute_color
-    color_vertices = compute_color(max_projection, N)
-    
+    if compute_color_vertices == 1:
+        from compute_color import compute_color
+        all_colors = concatenate((max_projection, min_projection, mean_projection), axis=0).reshape((-1, 3))
+        color_vertices = compute_color(all_colors, N) # input all colors
+    else:
+        print 'Color vertices input already!'
+        color_vertices = asfarray(manual_vertices)*255.
+        print color_vertices
+
+    # drop a color vertice
+    if drop_color >0 and drop_color != 0:
+        print 'dropping a color vertice: ' + str(color_vertices[drop_color, :])
+        color_vertices = delete(color_vertices, drop_color, axis=0)
+        print color_vertices
 
     #for k in [80]:
     for k in range(n_image):
 
+        if k<start_plane-1 and start_plane>0: # skip planes until start_plane
+            continue
+
+        if k>end_plane-1 and end_plane>0: # stop after end_plane
+            break
+
         print "-----------"
-        print  "Running "+ str(k+1) + "/"+str(n_image)  
+        print  "Running "+ str(k+1) + "/"+str(n_image)
 
         im = im_stack[k,:,:,:]
 
         ## Piecewise image recovery ---
         from flatten import flatten, contrast_stretch
-        if level_flattening !=0:
-            im = flatten(im, iterations_flattening, level_flattening) # 2 iterations, level 11 
+        if level_flattening >0:
+            im = flatten(im, iterations_flattening, level_flattening) # 2 iterations, level 11
 
         # Contrast enhance 1
-        if level_contrast_enhancement != 0:
+        if level_contrast_enhancement >0:
             im = contrast_stretch(im, level_contrast_enhancement, 2, 98)
-      
+
         ## plane show
         #from matplotlib import pyplot as plt
         #imshow(im_stack[k,:,:,:])
@@ -911,9 +938,10 @@ if __name__ == '__main__':
         if k==0:
             Y0 = run_initial(im, json_data, str(k), color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
         else:
-            Y0=Y_prev.copy()    
+            Y0=Y_prev.copy()
         Y_prev = run_one( Y0, im, json_data, str(k), color_vertices ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
-    end=time.clock()
-    print 'time: ', end - start
+
+    end_all=time.clock()
+    print 'time: ', end_all - start_all
 
 ## EOF
