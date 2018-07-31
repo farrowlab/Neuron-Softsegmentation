@@ -371,7 +371,7 @@ def compute_color(input_im, N):
 
 	    #print len(newhull.vertices)
 	    if pigments_colors.shape[0] == N+1: # colors + black bakground + possible white
-		#print 'FFFFF: ' 
+		#print 'FFFFF: '
 		#print pigments_colors
 	        color_vertices =  np.asfarray(pigments_colors.reshape(pigments_colors.shape[0],3))
 		break

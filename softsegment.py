@@ -19,14 +19,18 @@
 # - Making sure black backround color is always 0th row in color patrix
 # - Data fidelity term weighting [it is slow, make flag FAST=0]
 # - Final weighting
-# - uint16 normalization [0, 1] dims image, enhanced
-
+# - Uint16 clipping [0, 1] to prevent dim results, increases overall lightness little
+# - Max, min and mean projection is used to find colors, seems to be working [max 3 + 1 black]
+# - Manual color vertice input enabled
+# - Dropping a segment is enabled [drop_color]
+# - Sliced segmentation enabled [start_plan, end_plane]
 #
+
 # To-do:
 # - TV-l1 for inpainting, since TV-l2 cannot do that (is not possble with LBFGSB, non-smooth :/)
 # - Find vertices in HSV and process there to get more robust soft color segmentation (hsv is an angle based space :/)
 # - exp_factor can be too high somites (not adaptive and changes depending on images)
-# - When noisy, max projection does not result in black pixels
+
 
 from numpy import *
 from itertools import izip as zip
@@ -824,7 +828,7 @@ if __name__ == '__main__':
     start_plane =json_data["start_plane"]
     end_plane =json_data["end_plane"]
     drop_color =json_data["drop_color"]
-    compute_color_vertices =json_data["compute_color_vertices"]
+    compute_color_vertices =json_data["automatic_color_vertices"]
     manual_vertices =json_data["manual_vertices"]
 
     #print level_flattening, level_contrast_enhancement

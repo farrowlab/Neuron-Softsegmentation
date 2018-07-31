@@ -12,11 +12,10 @@
 	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_yellow/",
 
 
+	"automatic_color_vertices": 0,
 	"number_soft_segments": 6,
-	"compute_color_vertices": 0,
-	"drop_color": -1,
 	"manual_vertices":[ [0,0,0], [1,0,0], [0,1,0], [0,0,1], [1,0,1], [1,1,0], [0,1,1] ] ,
-
+	"drop_color": -1,
 	
 	"w_fidelity_lsl2": 40.0, 
 	"w_ridge": 2, 
@@ -40,5 +39,7 @@
 
 
 
-	"Note1": "40-1-10 def, -1 indicates that parameter is disabled (except logical parameters and weights)"
+	"Note1": "40-1-10 def, -1 indicates that parameter is disabled (except logical parameters and weights)",
+	"Note2": "increasing w_ridge further sppeds up >6, yet sub-optimzal (too much regulirazition)"
+
 }
