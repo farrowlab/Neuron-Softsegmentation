@@ -761,14 +761,22 @@ def run_initial(arr, json_data, outprefix, color_vertices, save_every = None, so
     reset_saver( arr.shape )
     return Y0_initial
 
+def save_palette(colors, dir):
+    palette = ones((100, (colors.shape[0]-1)*100+5*((colors.shape[0]-1)-1), 3))
+    start  = 0
+    for k in range(colors.shape[0]):
+        if k==0: continue
+        palette[:, start:(start+100),:] = palette[:, start:(start+100),:] * colors[k, :]
+        start = start + 105
+    from tifffile import imsave
+    imsave(dir +'vertices_image.tif' , palette.astype('uint8'))
 
 def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out
     #from PIL import Image
     import tifffile as tifffile
 
-    # Hard thresholding
-    Y[Y>(1-float(threshold_opacity)/255.0)] = 1.0
     P = img.reshape(-1, img.shape[2] ).copy()
+
     # Last weighting
     from skimage import color
     P_temp = color.rgb2lab(transpose(tile(P, (colors[1:,:].shape[0], 1, 1)), (1,0,2)) )[:,:,1:]/100.0 #norm
@@ -783,6 +791,9 @@ def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opa
 
     Y = Y.reshape( img_shape[0], img_shape[1], -1 )
     Y= 1.0 - ((1.0-Y) * final_weight_q1.reshape( Y.shape ) )
+
+    # Hard thresholding
+    Y[Y>(1-float(threshold_opacity)/255.0)] = 1.0
 
     alphas = 1. - Y
     layers = []
@@ -909,6 +920,13 @@ if __name__ == '__main__':
         color_vertices = delete(color_vertices, drop_color, axis=0)
         print color_vertices
 
+    save_palette(color_vertices, output_folder)
+
+    with open(output_folder+'parameters_log.json', 'w') as outfile:
+        json.dump(json_data, outfile, sort_keys=True, indent= 4, ensure_ascii = False)
+
+    global INITIAL_DONE
+    INITIAL_DONE = 0
     #for k in [80]:
     for k in range(n_image):
 
@@ -939,13 +957,15 @@ if __name__ == '__main__':
         #plt.show()
 
         # use image pyramid to initialize for the first one then propogate initilization
-        if k==0:
+        if (k==0 or start_plane >0) and INITIAL_DONE == 0:
             Y0 = run_initial(im, json_data, str(k), color_vertices, save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
+            INITIAL_DONE = 1
         else:
             Y0=Y_prev.copy()
         Y_prev = run_one( Y0, im, json_data, str(k), color_vertices ,save_every = save_every, solve_smaller_factor = solve_smaller_factor, too_small = too_small)
 
     end_all=time.clock()
+    print '-------- Done Babe -----------'
     print 'time: ', end_all - start_all
 
 ## EOF

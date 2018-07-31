@@ -338,6 +338,7 @@ def compute_color(input_im, N):
 	    pigments_colors=pigments_colors.reshape((pigments_colors.shape[0],1,pigments_colors.shape[1]))
 	    #print pigments_colors.shape
 
+	    # add white to make sure (Not optimal, Heuristic)
 	    pigments_colors = np.vstack((pigments_colors, np.asarray([191,191,191]).reshape(1,1,3)) )
 
 	    white_index = []
@@ -349,25 +350,27 @@ def compute_color(input_im, N):
                     #print '- White color detected and deleted' # dont wanna keep whie, not informative
                     white_index.append(i)
 
-                if pigments_colors[i,0 ,0]<10.0 and pigments_colors[i, 0, 1] < 10.0 and pigments_colors[i,0, 2] < 10.0:
+                if pigments_colors[i,0 ,0]<15.0 and pigments_colors[i, 0, 1] < 15.0 and pigments_colors[i,0, 2] < 15.0:
                     black_index.append(i)
 
-
-	    assert len(black_index) == 1
+	    #assert len(black_index) > 0
 	    #assert len(white_index) < 2	# more than 1 white
 	    #if len(white_index) == 0: print '- No white pixels found, you got one extra layer, decrease number of colors (N)!'
 	    #print len(white_index)
 
 	    # make sure blck is the first color
-	    temp2 = pigments_colors[black_index,:]
-	    pigments_colors[black_index,:] = pigments_colors[0,:]
-	    pigments_colors[0,:] = temp2
-	    if 0 in set(white_index):
-			white_index[0] = black_index[0]
+            #print black_index, pigments_colors.shape
+	    #temp2 = pigments_colors[black_index,:]
+	    #pigments_colors[black_index,:] = pigments_colors[0,:]
+	    #pigments_colors[0,:] = temp2
+	    #if 0 in set(white_index):
+	    #		white_index[0] = black_index[0]
 
-	    # erase gray
-	    pigments_colors = np.delete(pigments_colors, white_index, axis=0)
-	    #print pigments_colors
+	    # erase gray and white
+	    pigments_colors = np.delete(pigments_colors, white_index+ black_index, axis=0)
+
+	    # insert [0, 0, 0] (Not optimal, Heuristic solution)
+	    pigments_colors = np.vstack((np.asarray([0,0,0]).reshape(1,1,3), pigments_colors) )
 
 	    #print len(newhull.vertices)
 	    if pigments_colors.shape[0] == N+1: # colors + black bakground + possible white

@@ -5,16 +5,16 @@
 	"stack_path2": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
 	"output_path2": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
 
-	"stack_path1": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_basic_rgb_30-150.tif", 
-	"output_path1": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
+	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_basic_rgb_30-150.tif", 
+	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
-	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/sparse_samples/yellow1.tif", 
-	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_yellow/",
+	"stack_path1": "/home/elrasbolkar/Desktop/brainbow_elras/testData/sparse_samples/orange1_basic.tif", 
+	"output_path1": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_orange/",
 
 
-	"automatic_color_vertices": 0,
+	"automatic_color_vertices": 1,
 	"number_soft_segments": 6,
-	"manual_vertices":[ [0,0,0], [1,0,0], [0,1,0], [0,0,1], [1,0,1], [1,1,0], [0,1,1] ] ,
+	"manual_vertices":[ [0,0,0], [1,0,0], [0,1,0], [0,0,1]] ,
 	"drop_color": -1,
 	
 	"w_fidelity_lsl2": 40.0, 
@@ -37,9 +37,7 @@
 
 
 
-
-
-	"Note1": "40-1-10 def, -1 indicates that parameter is disabled (except logical parameters and weights)",
+	"Note1": "40-2-20 def, -1 indicates that parameter is disabled (except logical parameters and weights)",
 	"Note2": "increasing w_ridge further sppeds up >6, yet sub-optimzal (too much regulirazition)"
 
 }
