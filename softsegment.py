@@ -24,13 +24,14 @@
 # - Manual color vertice input enabled
 # - Dropping a segment is enabled [drop_color]
 # - Sliced segmentation enabled [start_plan, end_plane]
+# - Added log saving by json.dump
 #
 
 # To-do:
 # - TV-l1 for inpainting, since TV-l2 cannot do that (is not possble with LBFGSB, non-smooth :/)
-# - Find vertices in HSV and process there to get more robust soft color segmentation (hsv is an angle based space :/)
+# - Fast edge-awere filtering for speckle noise removal (especially in green channel)
 # - exp_factor can be too high somites (not adaptive and changes depending on images)
-
+#
 
 from numpy import *
 from itertools import izip as zip
@@ -942,9 +943,9 @@ if __name__ == '__main__':
         im = im_stack[k,:,:,:]
 
         ## Piecewise image recovery ---
-        from flatten import flatten, contrast_stretch
+        from flatten import flatten_color, contrast_stretch
         if level_flattening >0:
-            im = flatten(im, iterations_flattening, level_flattening) # 2 iterations, level 11
+            im = flatten_color(im, output_folder, iterations_flattening, level_flattening) # 2 iterations, level 11
 
         # Contrast enhance 1
         if level_contrast_enhancement >0:

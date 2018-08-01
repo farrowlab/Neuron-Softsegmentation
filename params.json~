@@ -5,11 +5,11 @@
 	"stack_path2": "/home/elrasbolkar/Desktop/brainbow_elras/synthetic/neuron8_clean.tif", 
 	"output_path2": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/a_quantitative/results_our/",
 
-	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_basic_rgb_30-150.tif", 
-	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
+	"stack_path1": "/home/elrasbolkar/Desktop/brainbow_elras/testData/test3_basic_rgb_30-150.tif", 
+	"output_path1": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/challenging/",
 
-	"stack_path1": "/home/elrasbolkar/Desktop/brainbow_elras/testData/sparse_samples/orange1_basic.tif", 
-	"output_path1": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_orange/",
+	"stack_path": "/home/elrasbolkar/Desktop/brainbow_elras/testData/sparse_samples/magenta2_basic.tif", 
+	"output_path": "/home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_magenta2/",
 
 
 	"automatic_color_vertices": 1,
@@ -20,7 +20,7 @@
 	"w_fidelity_lsl2": 40.0, 
 	"w_ridge": 2, 
 	"w_tvl2": 20.0, 
-	"threshold_opacity": 75,
+	"threshold_opacity": 50,
 
 
 	"level_contrast_enhancement": -1, 
@@ -32,8 +32,8 @@
 	"SAVE_COLOR": 0,
 
 
-	"start_plane": 45,
-	"end_plane": 110,
+	"start_plane": -1,
+	"end_plane": -1,
 
 
 
