@@ -12,7 +12,7 @@ def flatten_color(im, output_folder = None, iterations=4, exp_factor=11):
 	import numpy as np
 	import prox_tv as ptv
 	from skimage import color
-    import json
+    	import json
 
 	im = np.asfarray(im)
 	row, col, ch = im.shape
@@ -72,11 +72,11 @@ def flatten_color(im, output_folder = None, iterations=4, exp_factor=11):
 	print np.max(F.ravel())
 
 	# Notify if exp_factor too much
-    if np.max(F.ravel())>1.1:
-        with open(output_folder+'error_log.json', 'w') as outfile:
-            json.dump('Overflattening: Decrease exp_factor hyperparameter!', outfile)
+    	if np.max(F.ravel())>= 1.2:
+        	with open(output_folder+'error_log.json', 'w') as outfile:
+            		json.dump('Overflattening: Decrease exp_factor hyperparameter!', outfile)
 
-        assert np.max(F.ravel())<=1.1, 'Overflattening: Decrease exp_factor hyperparameter!'
+        	assert np.max(F.ravel())<1.2, 'Overflattening: Decrease exp_factor hyperparameter!'
 
 	#io.imsave('result_'+str(iterations_)+'.png', F);
 	#io.imsave('result_'+str(iterations_)+'.png', F.clip(0.0, 1.0));
@@ -111,15 +111,15 @@ if __name__ == '__main__':
 
 	import skimage as ski
 	from skimage import io
-
-	im = io.imread('test_images/img.png')
+    name = '1'
+    im = io.imread('test_images/'+ name +'.jpg')
 	im = ski.img_as_float(im)
 	im_flat = flatten_color(im, None, 4, 3) # 3 works quit egood for natural images, 10 for confocal
 	#im_flat = (im_flat- np.min(im_flat.ravel()) ) / ( np.max(im_flat.ravel()) - np.min(im_flat.ravel()))
 	#io.imsave('results/result_flat.png', im_flat);
-	io.imsave('results/result_flat2.png', im_flat.clip(0.0, 1.0));
+	io.imsave('test_results/'+name+'_flat.png', im_flat.clip(0.0, 1.0));
 
 	im_flat_s = contrast_stretch(im_flat, 5, 2, 98)
-	io.imsave('results/result_flat_streched2.png', im_flat_s);
+	io.imsave('test_results/'+name+'_flat_streched.png', im_flat_s);
 
 	# -------------------------------

@@ -111,15 +111,15 @@ if __name__ == '__main__':
 
 	import skimage as ski
 	from skimage import io
-
-	im = io.imread('test_images/img.png')
+        name = '3'
+        im = io.imread('test_images/'+ name +'.jpg')
 	im = ski.img_as_float(im)
-	im_flat = flatten_color(im, None, 4, 3) # 3 works quit egood for natural images, 10 for confocal
+	im_flat = flatten_color(im, None, 4, 5) # 3 works quit egood for natural images, 10 for confocal
 	#im_flat = (im_flat- np.min(im_flat.ravel()) ) / ( np.max(im_flat.ravel()) - np.min(im_flat.ravel()))
 	#io.imsave('results/result_flat.png', im_flat);
-	io.imsave('results/result_flat2.png', im_flat.clip(0.0, 1.0));
+	io.imsave('test_results/'+name+'_flat.png', im_flat.clip(0.0, 1.0));
 
 	im_flat_s = contrast_stretch(im_flat, 5, 2, 98)
-	io.imsave('results/result_flat_streched2.png', im_flat_s);
+	io.imsave('test_results/'+name+'_flat_streched.png', im_flat_s);
 
 	# -------------------------------

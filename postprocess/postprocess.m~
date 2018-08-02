@@ -1,26 +1,33 @@
 %
-% Main test on an green example stack
+% simple softsegment to hardsegment conversion for sparse images
+%  
+% Alg: median3d (optional) + dilate and connect close ccs + erosion + keep leargest N  
+%                + over-dilate and get close ccs to create a mask + get the largest cc + use it as mask on
+%                  filtered version
 %
-cd /home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_katja_code
 
+%cd /home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_katja_code
 clear, clc;
-fname =  '../sparse_green/layer02.tif';
+fname =  '../sparse_green/layer03.tif';
 info = imfinfo(fname);
 num_images = numel(info);
 
+% read image
 for k = 1:num_images % get info from alpha
      k
      GFP(:,:,k) = imread(fname, k);
 end
+[ny, nx, nz] = size(GFP);
 
-% median filter to remove speckle
+% 3d median filter to remove speckle
 figure; imshow(max(GFP, [],3));
-stack = medfilt3(GFP, [3,3,3]);
-%stack =GFP; % if you dont need median filtering
-figure; imshow(max(stack, [],3));
+
+%stack = medfilt3(GFP, [3,3,3]);
+stack =GFP; % if you dont need median filtering
+%figure; imshow(max(stack, [],3));
 
 % parameters
-n_biggest_cc          = 800;
+n_biggest_cc          = 200; % Robust, other size based cc may remove neuron parts 
 distance_to_merge1    = 3;
 distance_to_merge2    = 9;
 erode_radius          = 3;
@@ -77,9 +84,30 @@ last_mask(cell2mat(conn2.PixelIdxList(ind))) =1;
 %figure; imshow(max(last_mask, [],3));
 
 % use biggest connected component as mask
-last_mask(~dilatedStack) = 0;
-GFP(~last_mask) = 0; GFP(GFP>0) = 1;
-figure; imshow(max(last_mask, [],3));
-figure; imshow(max(GFP, [],3), []);
+GFP_masked = stack;
+GFP_masked_dil = last_mask;
+GFP_masked_dil(~dilatedStack) = 0;
+GFP_masked(~last_mask) = 0; GFP_masked(GFP_masked>0) = 1;
+figure; imshow(max(GFP_masked_dil, [],3));
+figure; imshow(max(GFP_masked, [],3), []);
 
+max_z = max(GFP_masked, [],3);
+max_x = max(GFP_masked, [],2); max_x = reshape(max_x, [ny, nz]);
+max_y = max(GFP_masked, [],1); max_y = reshape(max_y, [nx, nz])';
+%figure; imshow(max_y);
+%figure; imshow(max_x);
 
+% save projections and result
+width = 50;
+im_prof = ones(ny+nz+width, nx+nz+width);
+im_prof(1:ny, 1:nx) = max_z;
+im_prof(ny+width+1:end, 1:nx) = max_y;
+im_prof(1:ny, nx+width+1:end) = max_x;
+figure; imshow(im_prof);
+
+%
+imwrite(max(GFP, [],3) ,'original_proj.png');
+imwrite(im_prof ,'masked_proj.png');
+save('neuron_masked.mat', 'GFP', 'GFP_masked', 'GFP_masked_dil');
+
+%EOF

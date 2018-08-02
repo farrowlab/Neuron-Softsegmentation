@@ -1,14 +1,16 @@
 %
-% simple softsegment to hardsegment conversion for sparse images
+% Simple softsegment to hardsegment conversion for sparse images
 %  
-% Alg: median3d (optional) + dilate and connect close ccs + erosion + keep leargest N  
-%                + over-dilate and get close ccs to create a mask + get the largest cc + use it as mask on
+% Alg: median3d (optional) + dilate and connect close ccs + erosion (optional) + keep leargest N  
+%                + over-dilate and get close ccs to create a mask + get the largest cc from it + use as mask on
 %                  filtered version
+% 
+% by Elras Sabri Bolkar
 %
 
 %cd /home/elrasbolkar/Desktop/brainbow_elras/A_final/compare/b_qualitative/sparse_katja_code
 clear, clc;
-fname =  '../sparse_orange/layer03.tif';
+fname =  '../../sparse_orange/layer03.tif';
 info = imfinfo(fname);
 num_images = numel(info);
 
@@ -19,15 +21,13 @@ for k = 1:num_images % get info from alpha
 end
 [ny, nx, nz] = size(GFP);
 
-% 3d median filter to remove speckle
 figure; imshow(max(GFP, [],3));
 
-%stack = medfilt3(GFP, [3,3,3]);
-stack =GFP; % if you dont need median filtering
-%figure; imshow(max(stack, [],3));
+% IMPORTANT parameters
+allow_medfilter       = 0; % If salt/pepper noise present
+n_biggest_cc          = 300; % eg. 200, 800 Robust, other size ops may remove neuron parts 
 
-% parameters
-n_biggest_cc          = 200; % Robust, other size based cc may remove neuron parts 
+% other parameters
 distance_to_merge1    = 3;
 distance_to_merge2    = 9;
 erode_radius          = 3;
@@ -37,7 +37,14 @@ dilationRadius        = 1;
 dilationBase          = dilationRadius; 
 dilationHeight        = 1;              
 %sizeThreshold         = 200;             
-%conservativeThreshold = 0.6;            
+%conservativeThreshold = 0.6;   
+
+if allow_medfilter ==1
+    stack = medfilt3(GFP, [3,3,3]);
+    figure; imshow(max(stack, [],3));
+else
+    stack =GFP; % if you dont need median filtering
+end
 
 % make sure stack is between 0 and 1
 stack = double(stack);
@@ -54,7 +61,7 @@ figure; imshow(max(dilatedStack, [],3));
 dilatedStack2 = bwdist(dilatedStack) < distance_to_merge1;
 %dilatedStack2 = bwdist(dilatedStack, 'chessboard') < distance_to_merge1;
 %dilatedStack2 = bwdist(dilatedStack, 'cityblock') < distance_to_merge1;
-dilatedStack2 = imerode(dilatedStack2, strel('disk',erode_radius));
+%dilatedStack2 = imerode(dilatedStack2, strel('disk',erode_radius));
 figure; imshow(max(dilatedStack2, [],3));
 
 % keep largest n connected components to relax algo
