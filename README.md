@@ -84,7 +84,8 @@ Soft segments (opacity layers) will be saved as tiff files, you may want to use 
 
 
 ### Citing
-S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology, Gjovik & KU Leuven, Leuven, 2018.
+S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology, Gjovik & KU Leuven, Leuven, 2018.\
+Note: Thesis pdf will be avalaible soon!
 
 ### Acknowledgements
 
