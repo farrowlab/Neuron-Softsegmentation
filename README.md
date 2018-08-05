@@ -69,13 +69,13 @@ Soft segments (opacity layers) will be saved as tiff files, you may want to use 
 
 ### Acknowledgements
 
-Our implementation is adapted from image manipulation algorithm developed by Tan et. al. (2015), please check their great work here: https://github.com/CraGL/Decompose-Single-Image-Into-Layers 
+Our implementation is adapted from image manipulation algorithm developed by Tan et. al. (2015), please check their great work here: https://github.com/CraGL/Decompose-Single-Image-Into-Layers \
 Paper: Tan, J., Lien, J. M., & Gingold, Y. (2017). Decomposing images into layers via RGB-space geometry. ACM Transactions on Graphics (TOG), 36(1), 7.
 
-We use Prox-Tv library for our weighted L1-norm image flattening implementation, fast and effective: https://github.com/albarji/proxTV 
+We use Prox-Tv library for our weighted L1-norm image flattening implementation, fast and effective: https://github.com/albarji/proxTV \
 Paper: Modular proximal optimization for multidimensional total-variation regularization. Álvaro Barbero, Suvrit Sra. http://arxiv.org/abs/1411.0589
 
-We recommend ImageJ plugin of BaSIC background subtraction: https://github.com/QSCD/BaSiC
+We recommend ImageJ plugin of BaSIC background subtraction: https://github.com/QSCD/BaSiC \
 Paper: Peng, T., Thorn, K., Schroeder, T., Wang, L., Theis, F. J., Marr, C., & Navab, N. 2017. A basic tool for background and shading correction of optical microscopy images. Nature Communications, 8, 14836.
 
 

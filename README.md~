@@ -10,26 +10,26 @@ The script designed to segment spectral (pseudo-color) viral labeled dendritic t
 
 Anaconda environments are recommended. After installing it, create an environment with Python 2.7
     
-    conda create -n softsegment python=2.7
+    $ conda create -n softsegment python=2.7
 
 Then install the following dependencies: Scipy, scikit-image, cvxopt, cython, cffi, pathlib and enum34 by:
 
-    conda install -c anaconda -n softsegment <package_name>
+    $ conda install -c anaconda -n softsegment <package_name>
     
 Make sure to activate the environment, then install Prox-TV library by:
 
-	source activate softsegment
-    pip install prox-tv
+	$ source activate softsegment
+    $ pip install prox-tv
 
 ### How to use
 
 When you open terminal, first activate your conda environment by:
 
-    source activate softsegment
+    $ source activate softsegment
 
 Then simply run following, we already have a sample image at input/ and softsegments with corresponding pseudo-color tags should appear at output/:
 
-    python softsegment,py
+    $ python softsegment,py
 
 Note that **params.json** has all parameters, no need to modify scripts. 
 
