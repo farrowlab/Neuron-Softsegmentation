@@ -6,10 +6,6 @@ The script designed to segment spectral (pseudo-color) viral labeled dendritic t
   <img src="docs/sparse.png" width="900"><br>
 </div>
 
-<div align="center">
-  <img src="docs/github2.png" width="900"><br>
-</div>
-
 
 ### Install dependencies
 
@@ -69,7 +65,12 @@ The following parameters are used to control degree of flattening and contrast e
 | level_flattening | choose > 1, you may get assertation error if too high, just decrease it |
 | iterations_flattening | flatten several times |
 
-Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the stacks.
+Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the stacks. You can also see below the results of our fast peicewise image recovery method: 
+
+<div align="center">
+  <img src="docs/github2.png" width="600"><br>
+</div>
+
 
 ### Citing
 S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology and KU Leuven, Leuven, 2018. Available: http://#.pdf
