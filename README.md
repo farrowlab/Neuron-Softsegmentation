@@ -6,6 +6,11 @@ The script designed to segment spectral (pseudo-color) viral labeled dendritic t
   <img src="docs/sparse.png" width="900"><br>
 </div>
 
+<div align="center">
+  <img src="docs/github2.png" width="900"><br>
+</div>
+
+
 ### Install dependencies
 
 Anaconda environments are recommended. After installing it, create an environment with Python 2.7
@@ -66,6 +71,8 @@ The following parameters are used to control degree of flattening and contrast e
 
 Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the stacks.
 
+### Citing
+S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology and KU Leuven, Leuven, 2018. Available: http://#.pdf
 
 ### Acknowledgements
 
