@@ -87,7 +87,7 @@ Soft segments (opacity layers) will be saved as tiff files, you may want to use 
 S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology, Gjovik & KU Leuven, Leuven, 2018.\
 Note: Thesis pdf will be avalaible soon!
 
-### Acknowledgements
+### References
 
 Our implementation is adapted from image manipulation algorithm developed by Tan et. al. (2015), please check their work here: https://github.com/CraGL/Decompose-Single-Image-Into-Layers \
 Paper: Tan, J., Lien, J. M., & Gingold, Y. (2017). Decomposing images into layers via RGB-space geometry. ACM Transactions on Graphics (TOG), 36(1), 7.
