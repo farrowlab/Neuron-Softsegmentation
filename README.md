@@ -33,7 +33,7 @@ Then simply run following, we already have a sample image at input/ and softsegm
     $ python softsegment.py
 
 
-Note that **params.json** has all parameters. No need to modify the code if you are lazy, directly change **params.json** file.
+Note that **params.json** has all parameters. No need to modify the code if you are lazy, directly change from the file.
 
 
 | Parameters |  Notes |
