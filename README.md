@@ -1,6 +1,6 @@
 ## Soft Segmentation of Viral Labeled Neurons
 
-The script designed to segment spectral (pseudo-color) viral labeled dendritic trees. It avoids hard borders and creates soft segments for each distinct pseudo-color. The package contains automatic palette computation and post-processing scripts to obtain denoised binary masks from soft segments. We also developed an image flattering algorithm based on weighted L1-norm TV, and implements it using Prox-TV package. Additionally, we also recommend using BaSIC ImageJ background subtraction plugin (freely available, also included here) if image is corrupted by heavy background noise. As an example (recovery of green and orange neuron):
+The script designed to segment spectral (pseudo-color) viral labeled dendritic trees. It avoids hard borders and creates soft segments for each distinct pseudo-color. The package contains automatic palette calculation and post-processing (in Matlab) scripts to obtain denoised binary masks from soft segments. We developed an image flattering algorithm based on weighted L1-norm total variation to increase diffusion of viral vectors, and implemented it using Prox-TV library. We also employed BaSIC ImageJ background subtraction plugin (freely available online, also included here), if the image is corrupted by heavy background noise. As an example, recovery of green and orange neurons can be seen below:
 
 <div align="center">
   <img src="docs/sparse.png" width="900"><br>
@@ -30,22 +30,22 @@ When you open terminal, first activate your conda environment by:
 
 Then simply run following, we already have a sample image at input/ and softsegments with corresponding pseudo-color tags should appear at output/:
 
-    $ python softsegment,py
+    $ python softsegment.py
 
 Note that **params.json** has all parameters, no need to modify scripts. 
 
 | Parameters |  Notes |
 | ------ | ------ |
-| stack_path | directory of the input stack |
+| stack_path | directory containing input stack |
 | output_path | directory to save results |
-| automatic_color_vertices | 1 to compute pseudo-color palette, 0 to manually indicate |
+| automatic_color_vertices | set 1 to compute pseudo-color palette, 0 to manually indicate |
 | manual_vertices | if automatic computation set 0, indicate pseudo-color vertices of the hull. e.g., [[1,0,0], [0,1,0], [0,0,1]]|
-| number_soft_segments | number of output segments (has to be same as number of vertices, do not count background black): e.g., 6|
+| number_soft_segments | number of output segments (has to be same as the number of vertices, do not count background black): e.g., 6 |
 | drop_color | ignore one of the vertices when computing soft segments (useful if two segments are highly overlapping, just drop one) e.g., 2 or put -1 not to drop any |
-| FAST | disable weighting term in the minimization function (much faster, but little suboptimal): 1 or 0 |
+| FAST | disable weighting term in the optimization function (much faster, but little suboptimal): 1 or 0 |
 | SAVE_COLOR | also saves colored versions of soft segments: 1 or 0 |
-| start_plane| compute segments from substack starting from e.g., 25|
-| end_plane | compute segments from substack until: e.g., 125|
+| start_plane| compute segments from substack starting from e.g., 25 or set -1 to disable|
+| end_plane | compute segments from substack until: e.g., 125 or set -1 to disable|
 
 The following parameters are used to control weighting of soft segmentation:
 
@@ -53,9 +53,8 @@ The following parameters are used to control weighting of soft segmentation:
 | ------ | ------ |
 | w_fidelity_lsl2 | weight of L2-norm least-squares data fidelity term |
 | w_ridge | weight of ridge (Tikhonov) regularization (prevents over-fitting)|
-| w_tvl2 | weight of L2-norm total variation regularization (smoother)|
-| threshold_opacity| hard thresholds opacity layers before saving |
-| end_plane | compute segments from substack until: e.g., 125|
+| w_tvl2 | weight of L2-norm total variation regularization (smoothing term)|
+| threshold_opacity| clips opacity values below the threshold to 0 before saving |
 
 The following parameters are used to control degree of flattening and contrast enhancement:
 
@@ -65,7 +64,7 @@ The following parameters are used to control degree of flattening and contrast e
 | level_flattening | choose > 1, you may get assertation error if too high, just decrease it |
 | iterations_flattening | flatten several times |
 
-Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the stacks. You can also see below the results of our fast peicewise image recovery method: 
+Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the results. Below, example processing results of our fast peicewise image recovery: 
 
 <div align="center">
   <img src="docs/github2.png" width="600"><br>
@@ -73,7 +72,7 @@ Soft segments (opacity layers) will be saved as tiff files, you may want to use 
 
 
 ### Citing
-S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology and KU Leuven, Leuven, 2018. Available: http://#.pdf
+S. Bolkar, “Soft Segmentation of Viral Labeled Neurons,” MSc Thesis, COSI Erasmus Mundus Joint Master Degree, Norwegian University of Science and Technology & KU Leuven, Leuven, 2018.
 
 ### Acknowledgements
 
