@@ -1,0 +1,56 @@
+{
+    "FAST": 1, 
+    "Notes": "#", 
+    "SAVE_COLOR": 0, 
+    "automatic_color_vertices": 1, 
+    "drop_color": -1, 
+    "end_plane": -1, 
+    "iterations_flattening": 2, 
+    "level_contrast_enhancement": -1, 
+    "level_flattening": 8, 
+    "manual_vertices": [
+        [
+            0, 
+            0, 
+            0
+        ], 
+        [
+            1, 
+            0, 
+            0
+        ], 
+        [
+            0, 
+            1, 
+            0
+        ], 
+        [
+            0, 
+            0, 
+            1
+        ], 
+        [
+            1, 
+            1, 
+            0
+        ], 
+        [
+            1, 
+            0, 
+            1
+        ], 
+        [
+            0, 
+            1, 
+            1
+        ]
+    ], 
+    "number_soft_segments": 8, 
+    "output_path": "output/", 
+    "stack_path": "input/MAX_neuron8.tif", 
+    "start_plane": -1, 
+    "threshold_opacity": 100, 
+    "w_fidelity_lsl2": 40.0, 
+    "w_ridge": 2, 
+    "w_tvl2": 20.0
+}

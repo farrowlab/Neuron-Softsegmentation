@@ -11,7 +11,7 @@
 	"w_fidelity_lsl2": 40.0,
 	"w_ridge": 2,
 	"w_tvl2": 20.0,
-	"threshold_opacity": 50,
+	"threshold_opacity": 100,
 
 	"level_flattening": 8,
 	"iterations_flattening": 2,
