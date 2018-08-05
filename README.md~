@@ -19,7 +19,7 @@ Then install the following dependencies: Scipy, scikit-image, cvxopt, cython, cf
     
 Make sure to activate the environment, then install Prox-TV library by:
 
-	$ source activate softsegment
+    $ source activate softsegment
     $ pip install prox-tv
 
 ### How to run
@@ -33,11 +33,14 @@ Then simply run following, we already have a sample image at input/ and softsegm
     $ python softsegment.py
 
 ### Protocol
-	- Backgroud subtruction by BaSIC: Using ImageJ split color channels of the stack, and apply BaSIC to each channnel independetly by seting drift of baseline to "replace with zero". Then combine color chaneels and save as a tiff file.
-	- Modify input file name and output directory if necessary fom *params.json*
-	- Set number of expected flourescent labels (e.g.,6). You can choose more pseudo-colors, computed segments will be just empty if that colors do not exist.
-	- Simply run "python softsegment.py", it will iteratively append each plane to previously saved segments (you can check during computation)
-	- Modify parameters if necessary (default parameter values are chosen heuristicly after experimentation)
+    - Background subtraction by BaSIC: Using ImageJ split color channels of the stack, and apply BaSIC to each channel independently by setting drift of baseline to "replace with zero". Then combine color channels and save as a tiff file
+    - Modify input file name and output directory if necessary from params.json
+    - Set the number of expected fluorescent labels (e.g.,6). You can choose more pseudo-colors, computed segments will be just empty if those colors do not exist
+    - Simply run "python softsegment.py", it will iteratively append each plane to previously saved segments (you can check during computation)
+    - Modify parameters if necessary (default parameter values are chosen heuristically after experimentation)
+    - Post-processing: Choose a soft segment and update file name in the postprocess.m, update parameters if necessary (enable median filter or change number of largest connected componenets)
+    - Run the script using a Matlab version with image processing toolbox (only simple mathematical morphology operations used, but R2016b or above necessary for 3d median filtering)
+  
 
 ### Parameters
 Note that **params.json** has all parameters. No need to modify the code if you are lazy, directly change from the file.
@@ -73,7 +76,7 @@ The following parameters are used to control degree of flattening and contrast e
 | level_flattening | choose > 1, you may get assertation error if too high, just decrease it (especially images with high frequency components)|
 | iterations_flattening | flatten several times (e.g., 2-4) |
 
-Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the results. Below, example processing results of our fast peicewise image recovery: 
+Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the results. Below, example processing results of our fast piecewise image recovery: 
 
 <div align="center">
   <img src="docs/github2.png" width="600"><br>
@@ -93,5 +96,4 @@ Paper: Modular proximal optimization for multidimensional total-variation regula
 
 We recommend ImageJ plugin of BaSIC background subtraction: https://github.com/QSCD/BaSiC \
 Paper: Peng, T., Thorn, K., Schroeder, T., Wang, L., Theis, F. J., Marr, C., & Navab, N. 2017. A basic tool for background and shading correction of optical microscopy images. Nature Communications, 8, 14836.
-
 
