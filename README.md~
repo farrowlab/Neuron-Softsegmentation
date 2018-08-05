@@ -60,6 +60,8 @@ The folllowing paramters are used to control degree of flattening and contrast e
 | level_flattening | choose > 1, you may get assertation error if too high, just decrease it |
 | iterations_flattening | flaten several times |
 
+Soft segmenets (opcaity layers) will be saved as tiff files, you may want ouse ImageJ to easliy load and se the stacks.
+
 
 ### Acknowledgements
 
