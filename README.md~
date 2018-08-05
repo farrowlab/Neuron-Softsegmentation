@@ -32,7 +32,8 @@ Then simply run following, we already have a sample image at input/ and softsegm
 
     $ python softsegment.py
 
-Note that **params.json** has all parameters, no need to modify scripts. 
+Note that **params.json** has all parameters. No need to modify the code if you are lazy, directly change **params.json** file.
+
 
 | Parameters |  Notes |
 | ------ | ------ |
@@ -64,7 +65,7 @@ The following parameters are used to control degree of flattening and contrast e
 | level_flattening | choose > 1, you may get assertation error if too high, just decrease it |
 | iterations_flattening | flatten several times |
 
-Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the results. You can also see below the results of our fast peicewise image recovery method: 
+Soft segments (opacity layers) will be saved as tiff files, you may want to use ImageJ to easily load and see the results. Below, example processing results of our fast peicewise image recovery: 
 
 <div align="center">
   <img src="docs/github2.png" width="600"><br>
