@@ -30,7 +30,7 @@
 # To-do:
 # - TV-l1 for inpainting, since TV-l2 cannot do that (is not possble with LBFGSB, non-smooth :/)
 # - exp_factor can be too high and give error (not adaptive and changes depending on images, if image is chaotic it should be low)
-#
+
 
 from numpy import *
 from itertools import izip as zip
