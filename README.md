@@ -10,27 +10,28 @@ The script designed to segment spectral (pseudo-color) viral labeled dendritic t
 
 Anaconda environments are recommended. After installing it, create an environment with Python 2.7
     
-    conda create -n softsegment python=2.7
+    $ conda create -n softsegment python=2.7
 
 Then install the following dependencies: Scipy, scikit-image, cvxopt, cython, cffi, pathlib and enum34 by:
 
-    conda install -c anaconda -n softsegment <package_name>
+    $ conda install -c anaconda -n softsegment <package_name>
     
-Then install Prox-tv library by:
+Make sure to activate the environment, then install Prox-TV library by:
 
-    pip install prox-tv
+	$ source activate softsegment
+    $ pip install prox-tv
 
 ### How to use
 
-First activate you conda environment by:
+When you open terminal, first activate your conda environment by:
 
-    source activate softsegment
+    $ source activate softsegment
 
 Then simply run following, we already have a sample image at input/ and softsegments with corresponding pseudo-color tags should appear at output/:
 
-    python softsegment,py
+    $ python softsegment,py
 
-Note that params.json has all parameters, no need to modify scripts. 
+Note that **params.json** has all parameters, no need to modify scripts. 
 
 | Parameters |  Notes |
 | ------ | ------ |
@@ -68,17 +69,13 @@ Soft segments (opacity layers) will be saved as tiff files, you may want to use 
 
 ### Acknowledgements
 
-Our implementation is adapted from the paper "Decomposing Images into Layers via RGB-space Geometry" by Tan et. al. (2015), please check their great work here: https://github.com/CraGL/Decompose-Single-Image-Into-Layers
+Our implementation is adapted from image manipulation algorithm developed by Tan et. al. (2015), please check their great work here: https://github.com/CraGL/Decompose-Single-Image-Into-Layers 
+Paper: Tan, J., Lien, J. M., & Gingold, Y. (2017). Decomposing images into layers via RGB-space geometry. ACM Transactions on Graphics (TOG), 36(1), 7.
 
-We use Prox-Tv library for weighted L1-norm image flattening, fast and effective: https://github.com/albarji/proxTV 
+We use Prox-Tv library for our weighted L1-norm image flattening implementation, fast and effective: https://github.com/albarji/proxTV 
+Paper: Modular proximal optimization for multidimensional total-variation regularization. Álvaro Barbero, Suvrit Sra. http://arxiv.org/abs/1411.0589
 
-We use ImageJ plugin of BaSIC background subtraction: https://github.com/QSCD/BaSiC
-
-### Referances
-Tan, J., Lien, J. M., & Gingold, Y. (2017). Decomposing images into layers via RGB-space geometry. ACM Transactions on Graphics (TOG), 36(1), 7.
-
-Modular proximal optimization for multidimensional total-variation regularization. Álvaro Barbero, Suvrit Sra. http://arxiv.org/abs/1411.0589
-
-Peng, T., Thorn, K., Schroeder, T., Wang, L., Theis, F. J., Marr, C., & Navab, N. 2017. A basic tool for background and shading correction of optical microscopy images. Nature Communications, 8, 14836.
+We recommend ImageJ plugin of BaSIC background subtraction: https://github.com/QSCD/BaSiC
+Paper: Peng, T., Thorn, K., Schroeder, T., Wang, L., Theis, F. J., Marr, C., & Navab, N. 2017. A basic tool for background and shading correction of optical microscopy images. Nature Communications, 8, 14836.
 
 
