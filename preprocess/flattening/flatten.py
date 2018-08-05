@@ -6,7 +6,7 @@
 # Elras S. Bolkar
 #
 
-def flatten_color(im, output_folder = None, iterations=4, exp_factor=11):
+def flatten_color(im, output_folder = None, iterations=4, exp_factor=10):
 
 	import time
 	import numpy as np
@@ -96,12 +96,11 @@ def contrast_stretch(img, strength=5, lower_percentile=2, higher_percentile=98):
 
 	print 'contrast stretching .. '
 	row, col, ch = img.shape
-	img = np.asfarray(img)
-	p2 = np.percentile(img, lower_percentile)
+
+	p2 = np.percentile(img, lower_percentile) # apply global not per-channel
 	p98 = np.percentile(img, higher_percentile)
 	for k in range(ch):
-		img_strectched[:,:,k] = (((img[:,:,k]-p2)*(1.0/(p98-p2)))*0.1*strength)
-		img_strectched = np.clip(img_strectched, 0, 1.0)
+		img_strectched[:,:,k] = (((img[:,:,k]-p2)*(1.0/(p98-p2)))*0.12*strength)
 
 	return img_strectched
 	# -------------------------------
@@ -111,15 +110,16 @@ if __name__ == '__main__':
 
 	import skimage as ski
 	from skimage import io
-        name = '3'
-        im = io.imread('test_images/'+ name +'.jpg')
+        name = 'neuron'
+        #im = io.imread('test_images/'+ name +'.jpg')
+        im = io.imread('test_images/'+ name +'.png')
 	im = ski.img_as_float(im)
-	im_flat = flatten_color(im, None, 4, 5) # 3 works quit egood for natural images, 10 for confocal
+	im_flat = flatten_color(im, None, 4, 11) # level changes depending on image edge density, chaotic image > small ('1.jpg':10, '2':3)
 	#im_flat = (im_flat- np.min(im_flat.ravel()) ) / ( np.max(im_flat.ravel()) - np.min(im_flat.ravel()))
 	#io.imsave('results/result_flat.png', im_flat);
 	io.imsave('test_results/'+name+'_flat.png', im_flat.clip(0.0, 1.0));
 
-	im_flat_s = contrast_stretch(im_flat, 5, 2, 98)
-	io.imsave('test_results/'+name+'_flat_streched.png', im_flat_s);
+	im_flat_s = contrast_stretch(im_flat, 4, 2, 98)
+	io.imsave('test_results/'+name+'_flat_streched.png', im_flat_s.clip(0.0, 1.0));
 
 	# -------------------------------

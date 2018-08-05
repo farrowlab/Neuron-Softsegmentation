@@ -2,14 +2,14 @@
 # Soft Segmentation of Viral Labeled Neurons
 # adapted from Tan et al., (2015): https://github.com/CraGL/Decompose-Single-Image-Into-Layers
 #
-# Briefly: Least-squares optimization with Tikhonov (ridge) and l2-TV regularizations
+# Briefly: Least-squares optimization with Tikhonov (ridge) and l2-norm TV regularizations
 #           + l1 color difference weighting on layers in a*b*
 # ----------------------------------------------------------------------------------------------
 # Note: Create a conda envirnemnt and install dependencies [recommended]
 #       Apply BaSIC ImajeJ background substruction before [Jar plugin is already included]
 #       Check misc_code/ for used libs in soft segmentation
-#       Check preprocess/ for preprocessing code called here
-#
+#       Check preprocess/ for preprocessing code
+#       Check postprocess/ for soft2hard conversion using mathematical morphology
 
 # Fixed:
 # - Flattening and contrast stretching
@@ -25,12 +25,11 @@
 # - Dropping a segment is enabled [drop_color]
 # - Sliced segmentation enabled [start_plan, end_plane]
 # - Added log saving by json.dump
-#
+# - Added postprocessing (Matlab)
 
 # To-do:
 # - TV-l1 for inpainting, since TV-l2 cannot do that (is not possble with LBFGSB, non-smooth :/)
-# - Fast edge-awere filtering for speckle noise removal (especially in green channel)
-# - exp_factor can be too high somites (not adaptive and changes depending on images)
+# - exp_factor can be too high and give error (not adaptive and changes depending on images, if image is chaotic it should be low)
 #
 
 from numpy import *
@@ -446,16 +445,6 @@ def optimize( arr, colors, Y0, weights, img_spatial_static_target = None, scratc
     # start = time.clock()
 
     try:
-        ## WOW! TNC does a really bad job on our problem.
-        # opt_result = scipy.optimize.minimize( e, Y0, method = 'TNC', jac = g, bounds = bounds )
-        ## I did an experiment with the 'tol' parameter.
-        ## I checked in the callback for a max/total absolute difference less than 1./255.
-        ## Passing tol directly doesn't work, because the solver we are using (L-BFGS-B)
-        ## normalizes it by the maximum function value, whereas we want an
-        ## absolute stopping criteria.
-        ## Max difference led to stopping with visible artifacts.
-        ## Total absolute difference terminated on the very iteration that L-BFGS-B did
-        ## anyways.
 
         opt_result = scipy.optimize.minimize( e, Y0, jac = g, bounds = bounds, callback = callback
           ,method='L-BFGS-B'
@@ -772,6 +761,7 @@ def save_palette(colors, dir):
     from tifffile import imsave
     imsave(dir +'vertices_image.tif' , palette.astype('uint8'))
 
+
 def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opacity = 0): # saving to layer folder commented out
     #from PIL import Image
     import tifffile as tifffile
@@ -817,8 +807,8 @@ def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opa
 
     composited = composite_layers( layers )
     composited = composited.round().clip( 0, 255 ).astype( uint8 )
-    outpath2 = output_folder + 'composite.tif'
-    tifffile.imsave(outpath2, composited, append='True')  # save with color
+    #outpath2 = output_folder + 'composite.tif'
+    #tifffile.imsave(outpath2, composited, append='True')  # save with color
 
     #Image.fromarray( composited ).save( outpath2 )
     #print 'Saved composite:', outpath
@@ -897,8 +887,7 @@ if __name__ == '__main__':
     if im_stack.dtype == 'uint16':
         print 'uint16 stack reading ...'
         im_stack = asfarray(im_stack)/65535.0
-        print ''
-        im_stack =  (im_stack / percentile(im_stack, 99.3)).clip(0.0, 1.0) # allow little saturation in uint16
+        im_stack =  (im_stack / percentile(im_stack, 99.3)).clip(0.0, 1.0) # allow little saturation in uint16 [CONFIGURE !!]
         max_projection = (255.0 * im_stack).astype('uint8').max(axis=0)
         min_projection = (255.0 * im_stack).astype('uint8').min(axis=0)
         mean_projection = floor((255.0 * im_stack).astype('uint8').mean(axis=0))
@@ -947,13 +936,14 @@ if __name__ == '__main__':
         im = im_stack[k,:,:,:]
 
         ## Piecewise image recovery ---
-        from flatten import flatten_color, contrast_stretch
+        from flatten import flatten_color
         if level_flattening >0:
             im = flatten_color(im, output_folder, iterations_flattening, level_flattening) # 2 iterations, level 11
 
         # Contrast enhance 1
+        from flatten import contrast_stretch
         if level_contrast_enhancement >0:
-            im = contrast_stretch(im, level_contrast_enhancement, 2, 98)
+            im = contrast_stretch(im, level_contrast_enhancement, 2, 98).clip(0.0, 1.0);
 
         ## plane show
         #from matplotlib import pyplot as plt
