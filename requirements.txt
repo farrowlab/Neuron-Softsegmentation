@@ -1,8 +1,11 @@
 
-python 2.7
-cvxopt
-pathlib
-numpy
+[python 2.7]
 scipy
-enum34, enum
+scikit-image
+cvxopt
+cython
+cffi	
+proxtv
+pathlib
+enum34
 

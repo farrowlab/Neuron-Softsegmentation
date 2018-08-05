@@ -806,16 +806,20 @@ def save_results( Y, colors, img, img_shape, outprefix, order=[] , threshold_opa
         layers.append( layer )
         outpath = output_folder+str(order[lay_folder]) +'/'+ outprefix + '-layer%02d.png' % li
         outpath_tiff = output_folder+'layer%02d.tif' % li
+        outpath_tiff_color = output_folder+'colored_layer%02d.tif' % li
+
         #Image.fromarray( layer ).save( outpath )
         if ( li != 0 ): tifffile.imsave(outpath_tiff, layer[:,:,3] , append='True')  # save alphas as tiff stacks	(except 0th beackground)
-        if ( li != 0 ) and SAVE_COLOR==1: tifffile.imsave(outpath_tiff+'_colored', layer, append='True')  # save alphas as tiff stacks	(except 0th beackground)
+        if ( li != 0 ) and SAVE_COLOR==1: tifffile.imsave(outpath_tiff_color, layer, append='True')  # save with color
 
         #print 'Saved layer:', outpath
         lay_folder = lay_folder +1
 
     composited = composite_layers( layers )
     composited = composited.round().clip( 0, 255 ).astype( uint8 )
-    #outpath2 = output_folder+'composite/' + outprefix + '-composite.png'
+    outpath2 = output_folder + 'composite.tif'
+    tifffile.imsave(outpath2, composited, append='True')  # save with color
+
     #Image.fromarray( composited ).save( outpath2 )
     #print 'Saved composite:', outpath
     return composited
